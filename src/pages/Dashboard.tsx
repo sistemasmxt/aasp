@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -15,6 +15,9 @@ import {
   DollarSign,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import logo from "@/assets/logo.png";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -22,29 +25,125 @@ import { Badge } from "@/components/ui/badge";
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const { user, loading, signOut } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [profile, setProfile] = useState<any>(null);
+  const [alerts, setAlerts] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate("/auth");
+    }
+  }, [user, loading, navigate]);
+
+  useEffect(() => {
+    if (user) {
+      // Load user profile
+      supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .single()
+        .then(({ data }) => setProfile(data));
+
+      // Load recent alerts
+      supabase
+        .from("emergency_alerts")
+        .select("*")
+        .eq("is_active", true)
+        .order("created_at", { ascending: false })
+        .limit(5)
+        .then(({ data }) => setAlerts(data || []));
+
+      // Subscribe to new alerts
+      const channel = supabase
+        .channel("emergency_alerts")
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "emergency_alerts",
+          },
+          (payload) => {
+            setAlerts((prev) => [payload.new, ...prev].slice(0, 5));
+            toast({
+              title: "⚠️ Novo Alerta de Emergência!",
+              description: `Tipo: ${payload.new.alert_type}`,
+              variant: "destructive",
+            });
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [user, toast]);
 
   const stats = [
     { label: "Associados Ativos", value: "1,247", icon: Users, color: "text-primary" },
     { label: "Câmeras Ativas", value: "84", icon: Camera, color: "text-accent" },
-    { label: "Alertas Hoje", value: "3", icon: Bell, color: "text-warning" },
+    { label: "Alertas Hoje", value: alerts.length.toString(), icon: Bell, color: "text-warning" },
     { label: "Status Pagamento", value: "Em dia", icon: DollarSign, color: "text-success" },
   ];
 
-  const recentAlerts = [
-    { id: 1, type: "info", message: "Nova câmera instalada na Rua das Flores", time: "10 min atrás" },
-    { id: 2, type: "warning", message: "Movimento suspeito detectado", time: "2h atrás" },
-    { id: 3, type: "emergency", message: "Alerta SOS - Rua Principal", time: "5h atrás" },
-  ];
-
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await signOut();
     navigate("/");
   };
 
-  const handleSOSAlert = () => {
-    // Funcionalidade será implementada com backend
-    alert("Alerta SOS enviado! (Funcionalidade completa requer backend)");
+  const handleSOSAlert = async () => {
+    if (!user) return;
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const { error } = await supabase.from("emergency_alerts").insert({
+            user_id: user.id,
+            alert_type: "emergency",
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            message: "Alerta SOS ativado!",
+          });
+
+          if (error) throw error;
+
+          toast({
+            title: "🚨 SOS Ativado!",
+            description: "Alerta enviado para todos os associados",
+            variant: "destructive",
+          });
+        } catch (error: any) {
+          toast({
+            title: "Erro ao enviar alerta",
+            description: error.message,
+            variant: "destructive",
+          });
+        }
+      },
+      (error) => {
+        toast({
+          title: "Erro de localização",
+          description: "Não foi possível obter sua localização",
+          variant: "destructive",
+        });
+      }
+    );
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-hero">
+        <div className="text-center">
+          <img src={logo} alt="AASP Logo" className="h-20 w-20 mx-auto mb-4 animate-pulse" />
+          <p className="text-muted-foreground">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -66,12 +165,16 @@ const Dashboard = () => {
               </Button>
               <div className="flex items-center gap-3 ml-4">
                 <Avatar>
-                  <AvatarImage src="" />
-                  <AvatarFallback className="bg-primary text-primary-foreground">U</AvatarFallback>
+                  <AvatarImage src={profile?.avatar_url || ""} />
+                  <AvatarFallback className="bg-primary text-primary-foreground">
+                    {profile?.full_name?.charAt(0) || "U"}
+                  </AvatarFallback>
                 </Avatar>
                 <div className="text-left">
-                  <p className="text-sm font-medium text-foreground">Usuário Demo</p>
-                  <p className="text-xs text-muted-foreground">usuario@aasp.app.br</p>
+                  <p className="text-sm font-medium text-foreground">
+                    {profile?.full_name || "Usuário"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{user?.email}</p>
                 </div>
               </div>
               <Button variant="ghost" size="icon" onClick={handleLogout}>
@@ -146,28 +249,33 @@ const Dashboard = () => {
                 Alertas Recentes
               </h2>
               <div className="space-y-4">
-                {recentAlerts.map((alert) => (
-                  <div
-                    key={alert.id}
-                    className="flex items-start gap-3 p-4 rounded-lg bg-muted/50"
-                  >
-                    <AlertCircle
-                      className={`h-5 w-5 mt-0.5 ${
-                        alert.type === "emergency"
-                          ? "text-emergency"
-                          : alert.type === "warning"
-                          ? "text-warning"
-                          : "text-primary"
-                      }`}
-                    />
-                    <div className="flex-1">
-                      <p className="text-sm text-foreground">{alert.message}</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {alert.time}
-                      </p>
+                {alerts.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-4">
+                    Nenhum alerta ativo no momento
+                  </p>
+                ) : (
+                  alerts.map((alert) => (
+                    <div
+                      key={alert.id}
+                      className="flex items-start gap-3 p-4 rounded-lg bg-muted/50"
+                    >
+                      <AlertCircle className="h-5 w-5 mt-0.5 text-emergency" />
+                      <div className="flex-1">
+                        <p className="text-sm text-foreground">
+                          {alert.alert_type === "robbery"
+                            ? "Assalto"
+                            : alert.alert_type === "assault"
+                            ? "Agressão"
+                            : "Emergência"}
+                          {alert.message && ` - ${alert.message}`}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {new Date(alert.created_at).toLocaleString("pt-BR")}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </Card>
 
@@ -187,7 +295,7 @@ const Dashboard = () => {
                   <MessageCircle className="h-6 w-6 mr-3 text-primary" />
                   <div className="text-left">
                     <p className="font-medium">Mensagens</p>
-                    <p className="text-xs text-muted-foreground">5 não lidas</p>
+                    <p className="text-xs text-muted-foreground">Chat em tempo real</p>
                   </div>
                 </Button>
                 <Button variant="outline" className="h-20 justify-start">
@@ -216,9 +324,9 @@ const Dashboard = () => {
                   Chat em Tempo Real
                 </h3>
                 <p className="text-muted-foreground mb-6">
-                  Conecte ao Lovable Cloud para habilitar mensagens em tempo real
+                  Funcionalidade de chat será implementada em breve
                 </p>
-                <Badge variant="outline">Em breve</Badge>
+                <Badge variant="outline">Em desenvolvimento</Badge>
               </div>
             </Card>
           </TabsContent>
@@ -233,7 +341,7 @@ const Dashboard = () => {
                 <p className="text-muted-foreground mb-6">
                   Visualize e gerencie câmeras IP da sua região
                 </p>
-                <Badge variant="outline">Em breve</Badge>
+                <Badge variant="outline">Em desenvolvimento</Badge>
               </div>
             </Card>
           </TabsContent>
@@ -248,7 +356,7 @@ const Dashboard = () => {
                 <p className="text-muted-foreground mb-6">
                   Visualize câmeras e pontos de interesse no mapa
                 </p>
-                <Badge variant="outline">Em breve</Badge>
+                <Badge variant="outline">Em desenvolvimento</Badge>
               </div>
             </Card>
           </TabsContent>
