@@ -9,6 +9,40 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import logo from "@/assets/logo.png";
+import { z } from "zod";
+
+// Validation schemas
+const loginSchema = z.object({
+  email: z.string()
+    .trim()
+    .email({ message: "E-mail inválido" })
+    .max(255, { message: "E-mail muito longo" }),
+  password: z.string()
+    .min(8, { message: "Senha deve ter no mínimo 8 caracteres" })
+});
+
+const signupSchema = z.object({
+  email: z.string()
+    .trim()
+    .email({ message: "E-mail inválido" })
+    .max(255, { message: "E-mail muito longo" }),
+  password: z.string()
+    .min(8, { message: "Senha deve ter no mínimo 8 caracteres" })
+    .regex(/[A-Z]/, { message: "Senha deve conter pelo menos uma letra maiúscula" })
+    .regex(/[a-z]/, { message: "Senha deve conter pelo menos uma letra minúscula" })
+    .regex(/[0-9]/, { message: "Senha deve conter pelo menos um número" })
+    .max(128, { message: "Senha muito longa" }),
+  fullName: z.string()
+    .trim()
+    .min(3, { message: "Nome deve ter no mínimo 3 caracteres" })
+    .max(100, { message: "Nome muito longo" })
+    .regex(/^[a-zA-ZÀ-ÿ\s]+$/, { message: "Nome deve conter apenas letras" }),
+  phone: z.string()
+    .trim()
+    .regex(/^\(?\d{2}\)?\s?9?\d{4}-?\d{4}$/, { 
+      message: "Formato de telefone inválido. Use: (11) 98888-8888" 
+    })
+});
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -29,13 +63,18 @@ const Auth = () => {
     setIsLoading(true);
 
     const formData = new FormData(e.currentTarget);
-    const email = formData.get("email") as string;
-    const password = formData.get("password") as string;
+    const rawData = {
+      email: formData.get("email") as string,
+      password: formData.get("password") as string,
+    };
 
     try {
+      // Validate input
+      const validatedData = loginSchema.parse(rawData);
+
       const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+        email: validatedData.email,
+        password: validatedData.password,
       });
 
       if (error) throw error;
@@ -46,11 +85,19 @@ const Auth = () => {
       });
       navigate("/dashboard");
     } catch (error: any) {
-      toast({
-        title: "Erro ao fazer login",
-        description: error.message,
-        variant: "destructive",
-      });
+      if (error instanceof z.ZodError) {
+        toast({
+          title: "Dados inválidos",
+          description: error.errors[0].message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Erro ao fazer login",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -61,20 +108,25 @@ const Auth = () => {
     setIsLoading(true);
 
     const formData = new FormData(e.currentTarget);
-    const email = formData.get("signup-email") as string;
-    const password = formData.get("signup-password") as string;
-    const fullName = formData.get("signup-name") as string;
-    const phone = formData.get("signup-phone") as string;
+    const rawData = {
+      email: formData.get("signup-email") as string,
+      password: formData.get("signup-password") as string,
+      fullName: formData.get("signup-name") as string,
+      phone: formData.get("signup-phone") as string,
+    };
 
     try {
+      // Validate input
+      const validatedData = signupSchema.parse(rawData);
+
       const { error } = await supabase.auth.signUp({
-        email,
-        password,
+        email: validatedData.email,
+        password: validatedData.password,
         options: {
           emailRedirectTo: `${window.location.origin}/`,
           data: {
-            full_name: fullName,
-            phone: phone,
+            full_name: validatedData.fullName,
+            phone: validatedData.phone,
           },
         },
       });
@@ -87,11 +139,19 @@ const Auth = () => {
       });
       navigate("/dashboard");
     } catch (error: any) {
-      toast({
-        title: "Erro ao criar conta",
-        description: error.message,
-        variant: "destructive",
-      });
+      if (error instanceof z.ZodError) {
+        toast({
+          title: "Dados inválidos",
+          description: error.errors[0].message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Erro ao criar conta",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -195,6 +255,7 @@ const Auth = () => {
                   <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="signup-name"
+                    name="signup-name"
                     type="text"
                     placeholder="Seu nome completo"
                     className="pl-10"
@@ -209,6 +270,7 @@ const Auth = () => {
                   <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="signup-phone"
+                    name="signup-phone"
                     type="tel"
                     placeholder="(11) 98888-8888"
                     className="pl-10"
@@ -223,6 +285,7 @@ const Auth = () => {
                   <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="signup-email"
+                    name="signup-email"
                     type="email"
                     placeholder="seu@email.com"
                     className="pl-10"
@@ -237,6 +300,7 @@ const Auth = () => {
                   <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="signup-password"
+                    name="signup-password"
                     type="password"
                     placeholder="Mínimo 8 caracteres"
                     className="pl-10"
