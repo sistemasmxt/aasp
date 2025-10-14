@@ -4,84 +4,51 @@ import { Shield, Camera, Users, Bell, MapPin, MessageCircle } from "lucide-react
 import { useNavigate } from "react-router-dom";
 import heroImage from "@/assets/hero-security.jpg";
 import logo from "@/assets/logo.png";
-
 const Landing = () => {
   const navigate = useNavigate();
-
-  const features = [
-    {
-      icon: Shield,
-      title: "Segurança 24/7",
-      description: "Monitoramento contínuo e alertas em tempo real para sua tranquilidade"
-    },
-    {
-      icon: Camera,
-      title: "Câmeras IP",
-      description: "Visualize câmeras próximas e mantenha-se informado sobre sua região"
-    },
-    {
-      icon: Users,
-      title: "Rede de Associados",
-      description: "Conecte-se com vizinhos e fortaleça a segurança coletiva"
-    },
-    {
-      icon: Bell,
-      title: "Alertas SOS",
-      description: "Sistema de emergência com notificações instantâneas para toda rede"
-    },
-    {
-      icon: MessageCircle,
-      title: "Chat em Tempo Real",
-      description: "Comunicação direta com associados próximos"
-    },
-    {
-      icon: MapPin,
-      title: "Geolocalização",
-      description: "Mapa interativo mostrando pontos de monitoramento"
-    }
-  ];
-
-  const plans = [
-    {
-      name: "Básico",
-      price: "R$ 49,90",
-      period: "/mês",
-      features: [
-        "Acesso ao chat da comunidade",
-        "Alertas de emergência",
-        "Visualização de câmeras públicas",
-        "Suporte por email"
-      ]
-    },
-    {
-      name: "Premium",
-      price: "R$ 89,90",
-      period: "/mês",
-      featured: true,
-      features: [
-        "Tudo do plano Básico",
-        "Câmeras particulares ilimitadas",
-        "Prioridade em alertas",
-        "Suporte 24/7",
-        "Histórico de eventos 90 dias"
-      ]
-    },
-    {
-      name: "Empresarial",
-      price: "Sob consulta",
-      period: "",
-      features: [
-        "Tudo do plano Premium",
-        "Dashboard administrativo",
-        "Gestão de múltiplos locais",
-        "API de integração",
-        "Treinamento personalizado"
-      ]
-    }
-  ];
-
-  return (
-    <div className="min-h-screen bg-background">
+  const features = [{
+    icon: Shield,
+    title: "Segurança 24/7",
+    description: "Monitoramento contínuo e alertas em tempo real para sua tranquilidade"
+  }, {
+    icon: Camera,
+    title: "Câmeras IP",
+    description: "Visualize câmeras próximas e mantenha-se informado sobre sua região"
+  }, {
+    icon: Users,
+    title: "Rede de Associados",
+    description: "Conecte-se com vizinhos e fortaleça a segurança coletiva"
+  }, {
+    icon: Bell,
+    title: "Alertas SOS",
+    description: "Sistema de emergência com notificações instantâneas para toda rede"
+  }, {
+    icon: MessageCircle,
+    title: "Chat em Tempo Real",
+    description: "Comunicação direta com associados próximos"
+  }, {
+    icon: MapPin,
+    title: "Geolocalização",
+    description: "Mapa interativo mostrando pontos de monitoramento"
+  }];
+  const plans = [{
+    name: "Básico",
+    price: "R$ 49,90",
+    period: "/mês",
+    features: ["Acesso ao chat da comunidade", "Alertas de emergência", "Visualização de câmeras públicas", "Suporte por email"]
+  }, {
+    name: "Premium",
+    price: "R$ 89,90",
+    period: "/mês",
+    featured: true,
+    features: ["Tudo do plano Básico", "Câmeras particulares ilimitadas", "Prioridade em alertas", "Suporte 24/7", "Histórico de eventos 90 dias"]
+  }, {
+    name: "Empresarial",
+    price: "Sob consulta",
+    period: "",
+    features: ["Tudo do plano Premium", "Dashboard administrativo", "Gestão de múltiplos locais", "API de integração", "Treinamento personalizado"]
+  }];
+  return <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
         <nav className="container mx-auto px-4 py-4">
@@ -121,7 +88,7 @@ const Landing = () => {
               <Button onClick={() => navigate("/auth")} size="lg" className="bg-white text-primary hover:bg-white/90">
                 Começar Agora
               </Button>
-              <Button onClick={() => navigate("/auth")} size="lg" variant="outline" className="border-white text-white hover:bg-white/10">
+              <Button onClick={() => navigate("/auth")} size="lg" variant="outline" className="border-white bg-gray-50 text-orange-600">
                 Saiba Mais
               </Button>
             </div>
@@ -141,8 +108,7 @@ const Landing = () => {
             </p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {features.map((feature, index) => (
-              <Card key={index} className="p-6 hover:shadow-glow transition-all duration-300">
+            {features.map((feature, index) => <Card key={index} className="p-6 hover:shadow-glow transition-all duration-300">
                 <feature.icon className="h-12 w-12 text-primary mb-4" />
                 <h3 className="text-xl font-semibold text-foreground mb-2">
                   {feature.title}
@@ -150,8 +116,7 @@ const Landing = () => {
                 <p className="text-muted-foreground">
                   {feature.description}
                 </p>
-              </Card>
-            ))}
+              </Card>)}
           </div>
         </div>
       </section>
@@ -168,16 +133,10 @@ const Landing = () => {
             </p>
           </div>
           <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            {plans.map((plan, index) => (
-              <Card 
-                key={index} 
-                className={`p-8 ${plan.featured ? 'border-primary border-2 shadow-glow' : ''} hover:scale-105 transition-transform duration-300`}
-              >
-                {plan.featured && (
-                  <div className="bg-primary text-primary-foreground text-sm font-semibold px-3 py-1 rounded-full w-fit mb-4">
+            {plans.map((plan, index) => <Card key={index} className={`p-8 ${plan.featured ? 'border-primary border-2 shadow-glow' : ''} hover:scale-105 transition-transform duration-300`}>
+                {plan.featured && <div className="bg-primary text-primary-foreground text-sm font-semibold px-3 py-1 rounded-full w-fit mb-4">
                     Mais Popular
-                  </div>
-                )}
+                  </div>}
                 <h3 className="text-2xl font-bold text-foreground mb-2">
                   {plan.name}
                 </h3>
@@ -190,22 +149,15 @@ const Landing = () => {
                   </span>
                 </div>
                 <ul className="space-y-3 mb-8">
-                  {plan.features.map((feature, i) => (
-                    <li key={i} className="flex items-start gap-2 text-foreground/80">
+                  {plan.features.map((feature, i) => <li key={i} className="flex items-start gap-2 text-foreground/80">
                       <Shield className="h-5 w-5 text-accent mt-0.5 flex-shrink-0" />
                       <span>{feature}</span>
-                    </li>
-                  ))}
+                    </li>)}
                 </ul>
-                <Button 
-                  onClick={() => navigate("/auth")}
-                  variant={plan.featured ? "default" : "outline"} 
-                  className="w-full"
-                >
+                <Button onClick={() => navigate("/auth")} variant={plan.featured ? "default" : "outline"} className="w-full">
                   Assinar Agora
                 </Button>
-              </Card>
-            ))}
+              </Card>)}
           </div>
         </div>
       </section>
@@ -268,8 +220,6 @@ const Landing = () => {
           </div>
         </div>
       </footer>
-    </div>
-  );
+    </div>;
 };
-
 export default Landing;
