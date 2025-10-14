@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import logo from "@/assets/logo.png";
 import { z } from "zod";
+import { mapErrorToUserMessage } from "@/lib/errorHandler";
 
 // Validation schemas
 const loginSchema = z.object({
@@ -94,7 +95,7 @@ const Auth = () => {
       } else {
         toast({
           title: "Erro ao fazer login",
-          description: error.message,
+          description: mapErrorToUserMessage(error),
           variant: "destructive",
         });
       }
@@ -148,7 +149,7 @@ const Auth = () => {
       } else {
         toast({
           title: "Erro ao criar conta",
-          description: error.message,
+          description: mapErrorToUserMessage(error),
           variant: "destructive",
         });
       }

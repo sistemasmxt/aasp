@@ -22,6 +22,7 @@ import logo from "@/assets/logo.png";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { mapErrorToUserMessage } from "@/lib/errorHandler";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -31,11 +32,8 @@ const Dashboard = () => {
   const [profile, setProfile] = useState<any>(null);
   const [alerts, setAlerts] = useState<any[]>([]);
 
-  useEffect(() => {
-    if (!loading && !user) {
-      navigate("/auth");
-    }
-  }, [user, loading, navigate]);
+  // Protection is now handled by ProtectedRoute wrapper
+  // This component only renders for authenticated users
 
   useEffect(() => {
     if (user) {
@@ -119,7 +117,7 @@ const Dashboard = () => {
         } catch (error: any) {
           toast({
             title: "Erro ao enviar alerta",
-            description: error.message,
+            description: mapErrorToUserMessage(error),
             variant: "destructive",
           });
         }
@@ -134,16 +132,7 @@ const Dashboard = () => {
     );
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-hero">
-        <div className="text-center">
-          <img src={logo} alt="AASP Logo" className="h-20 w-20 mx-auto mb-4 animate-pulse" />
-          <p className="text-muted-foreground">Carregando...</p>
-        </div>
-      </div>
-    );
-  }
+  // Loading state is now handled by ProtectedRoute wrapper
 
   return (
     <div className="min-h-screen bg-background">
