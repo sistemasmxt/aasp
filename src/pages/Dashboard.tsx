@@ -24,6 +24,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { mapErrorToUserMessage } from "@/lib/errorHandler";
 import { ChatInterface } from "@/components/chat/ChatInterface";
+import Map from "@/components/Map";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -328,19 +329,8 @@ const Dashboard = () => {
             </Card>
           </TabsContent>
 
-          <TabsContent value="map">
-            <Card className="p-6">
-              <div className="text-center py-12">
-                <MapPin className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-foreground mb-2">
-                  Mapa Interativo
-                </h3>
-                <p className="text-muted-foreground mb-6">
-                  Visualize câmeras e pontos de interesse no mapa
-                </p>
-                <Badge variant="outline">Em desenvolvimento</Badge>
-              </div>
-            </Card>
+          <TabsContent value="map" className="space-y-4">
+            <Map />
           </TabsContent>
         </Tabs>
       </div>
