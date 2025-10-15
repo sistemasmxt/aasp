@@ -11,18 +11,28 @@ export const ChatInterface = () => {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [selectedUserProfile, setSelectedUserProfile] = useState<any>(null);
 
+  console.log("=== ChatInterface Rendered ===");
+  console.log("Current user:", user?.id);
+
   useEffect(() => {
     if (selectedUserId) {
+      console.log("Loading profile for user:", selectedUserId);
       supabase
         .from("profiles")
         .select("id, full_name, avatar_url")
         .eq("id", selectedUserId)
         .single()
-        .then(({ data }) => setSelectedUserProfile(data));
+        .then(({ data }) => {
+          console.log("Profile loaded:", data);
+          setSelectedUserProfile(data);
+        });
     }
   }, [selectedUserId]);
 
-  if (!user) return null;
+  if (!user) {
+    console.log("No user found, returning null");
+    return null;
+  }
 
   return (
     <div className="grid md:grid-cols-[320px_1fr] gap-4 h-[calc(100vh-300px)]">
