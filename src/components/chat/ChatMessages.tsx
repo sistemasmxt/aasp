@@ -23,6 +23,7 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
   const { toast } = useToast();
 
   useEffect(() => {
+    console.log("Loading messages for:", currentUserId, "->", recipientId);
     loadMessages();
     
     const channel = supabase
@@ -33,25 +34,25 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
           event: "INSERT",
           schema: "public",
           table: "messages",
-          filter: `sender_id=eq.${recipientId},receiver_id=eq.${currentUserId}`,
         },
         (payload) => {
-          setMessages((prev) => [...prev, payload.new]);
+          console.log("New message received:", payload);
+          const msg = payload.new as any;
+          if (
+            (msg.sender_id === recipientId && msg.receiver_id === currentUserId) ||
+            (msg.sender_id === currentUserId && msg.receiver_id === recipientId)
+          ) {
+            setMessages((prev) => {
+              // Avoid duplicates
+              if (prev.some(m => m.id === msg.id)) return prev;
+              return [...prev, msg];
+            });
+          }
         }
       )
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "messages",
-          filter: `sender_id=eq.${currentUserId},receiver_id=eq.${recipientId}`,
-        },
-        (payload) => {
-          setMessages((prev) => [...prev, payload.new]);
-        }
-      )
-      .subscribe();
+      .subscribe((status) => {
+        console.log("Chat channel status:", status);
+      });
 
     return () => {
       supabase.removeChannel(channel);
@@ -63,7 +64,8 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
   }, [messages]);
 
   const loadMessages = async () => {
-    const { data } = await supabase
+    console.log("Loading messages between:", currentUserId, "and", recipientId);
+    const { data, error } = await supabase
       .from("messages")
       .select("*")
       .or(
@@ -72,6 +74,8 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
       .eq("is_group", false)
       .order("created_at", { ascending: true });
 
+    console.log("Messages loaded:", data?.length || 0, "Error:", error);
+    
     if (data) {
       setMessages(data);
     }
@@ -88,18 +92,27 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
 
     setSending(true);
     try {
-      const { error } = await supabase.from("messages").insert({
+      console.log("Sending message:", {
+        sender_id: currentUserId,
+        receiver_id: recipientId,
+        content: newMessage.trim(),
+      });
+      
+      const { data, error } = await supabase.from("messages").insert({
         sender_id: currentUserId,
         receiver_id: recipientId,
         content: newMessage.trim(),
         message_type: "text",
         is_group: false,
-      });
+      }).select();
+
+      console.log("Message sent:", data, "Error:", error);
 
       if (error) throw error;
 
       setNewMessage("");
     } catch (error: any) {
+      console.error("Error sending message:", error);
       toast({
         title: "Erro ao enviar mensagem",
         description: mapErrorToUserMessage(error),

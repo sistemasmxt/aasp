@@ -15,12 +15,15 @@ export const UserList = ({ currentUserId, selectedUserId, onSelectUser }: UserLi
 
   useEffect(() => {
     const loadUsers = async () => {
-      const { data } = await supabase
+      console.log("Loading users, current user:", currentUserId);
+      const { data, error } = await supabase
         .from("profiles")
         .select("id, full_name, avatar_url")
         .neq("id", currentUserId)
         .order("full_name");
 
+      console.log("Users loaded:", data?.length || 0, "Error:", error);
+      
       if (data) {
         setUsers(data);
       }
