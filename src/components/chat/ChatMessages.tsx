@@ -1,0 +1,201 @@
+import { useEffect, useState, useRef } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Send } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { mapErrorToUserMessage } from "@/lib/errorHandler";
+import { cn } from "@/lib/utils";
+
+interface ChatMessagesProps {
+  currentUserId: string;
+  recipientId: string;
+  recipientProfile: any;
+}
+
+export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: ChatMessagesProps) => {
+  const [messages, setMessages] = useState<any[]>([]);
+  const [newMessage, setNewMessage] = useState("");
+  const [sending, setSending] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    loadMessages();
+    
+    const channel = supabase
+      .channel(`chat:${currentUserId}:${recipientId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+          filter: `sender_id=eq.${recipientId},receiver_id=eq.${currentUserId}`,
+        },
+        (payload) => {
+          setMessages((prev) => [...prev, payload.new]);
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+          filter: `sender_id=eq.${currentUserId},receiver_id=eq.${recipientId}`,
+        },
+        (payload) => {
+          setMessages((prev) => [...prev, payload.new]);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentUserId, recipientId]);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const loadMessages = async () => {
+    const { data } = await supabase
+      .from("messages")
+      .select("*")
+      .or(
+        `and(sender_id.eq.${currentUserId},receiver_id.eq.${recipientId}),and(sender_id.eq.${recipientId},receiver_id.eq.${currentUserId})`
+      )
+      .eq("is_group", false)
+      .order("created_at", { ascending: true });
+
+    if (data) {
+      setMessages(data);
+    }
+  };
+
+  const scrollToBottom = () => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  };
+
+  const handleSend = async () => {
+    if (!newMessage.trim() || sending) return;
+
+    setSending(true);
+    try {
+      const { error } = await supabase.from("messages").insert({
+        sender_id: currentUserId,
+        receiver_id: recipientId,
+        content: newMessage.trim(),
+        message_type: "text",
+        is_group: false,
+      });
+
+      if (error) throw error;
+
+      setNewMessage("");
+    } catch (error: any) {
+      toast({
+        title: "Erro ao enviar mensagem",
+        description: mapErrorToUserMessage(error),
+        variant: "destructive",
+      });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
+  return (
+    <>
+      <div className="flex items-center gap-3 p-4 border-b border-border bg-card">
+        <Avatar className="h-10 w-10">
+          <AvatarImage src={recipientProfile?.avatar_url || ""} />
+          <AvatarFallback className="bg-secondary text-secondary-foreground">
+            {recipientProfile?.full_name?.charAt(0) || "U"}
+          </AvatarFallback>
+        </Avatar>
+        <div>
+          <p className="font-medium text-foreground">
+            {recipientProfile?.full_name || "Usuário"}
+          </p>
+        </div>
+      </div>
+
+      <ScrollArea ref={scrollRef} className="flex-1 p-4">
+        <div className="space-y-4">
+          {messages.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">
+              Nenhuma mensagem ainda. Comece a conversa!
+            </p>
+          ) : (
+            messages.map((message) => (
+              <div
+                key={message.id}
+                className={cn(
+                  "flex",
+                  message.sender_id === currentUserId ? "justify-end" : "justify-start"
+                )}
+              >
+                <div
+                  className={cn(
+                    "max-w-[70%] rounded-lg p-3",
+                    message.sender_id === currentUserId
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-foreground"
+                  )}
+                >
+                  <p className="text-sm break-words">{message.content}</p>
+                  <p
+                    className={cn(
+                      "text-xs mt-1",
+                      message.sender_id === currentUserId
+                        ? "text-primary-foreground/70"
+                        : "text-muted-foreground"
+                    )}
+                  >
+                    {new Date(message.created_at).toLocaleTimeString("pt-BR", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </p>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </ScrollArea>
+
+      <div className="p-4 border-t border-border bg-card">
+        <div className="flex gap-2">
+          <Input
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            onKeyPress={handleKeyPress}
+            placeholder="Digite sua mensagem..."
+            disabled={sending}
+            className="flex-1"
+          />
+          <Button
+            onClick={handleSend}
+            disabled={!newMessage.trim() || sending}
+            size="icon"
+          >
+            <Send className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    </>
+  );
+};

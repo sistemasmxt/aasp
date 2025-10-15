@@ -23,6 +23,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { mapErrorToUserMessage } from "@/lib/errorHandler";
+import { ChatInterface } from "@/components/chat/ChatInterface";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -306,18 +307,7 @@ const Dashboard = () => {
           </TabsContent>
 
           <TabsContent value="chat">
-            <Card className="p-6">
-              <div className="text-center py-12">
-                <MessageCircle className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-foreground mb-2">
-                  Chat em Tempo Real
-                </h3>
-                <p className="text-muted-foreground mb-6">
-                  Funcionalidade de chat será implementada em breve
-                </p>
-                <Badge variant="outline">Em desenvolvimento</Badge>
-              </div>
-            </Card>
+            <ChatInterface />
           </TabsContent>
 
           <TabsContent value="cameras">
