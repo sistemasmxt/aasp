@@ -25,6 +25,8 @@ import { Badge } from "@/components/ui/badge";
 import { mapErrorToUserMessage } from "@/lib/errorHandler";
 import { ChatInterface } from "@/components/chat/ChatInterface";
 import Map from "@/components/Map";
+import CameraList from "@/components/cameras/CameraList";
+import CameraViewer from "@/components/cameras/CameraViewer";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -33,6 +35,7 @@ const Dashboard = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [profile, setProfile] = useState<any>(null);
   const [alerts, setAlerts] = useState<any[]>([]);
+  const [selectedCamera, setSelectedCamera] = useState<any>(null);
 
   // Protection is now handled by ProtectedRoute wrapper
   // This component only renders for authenticated users
@@ -314,19 +317,15 @@ const Dashboard = () => {
             <ChatInterface />
           </TabsContent>
 
-          <TabsContent value="cameras">
-            <Card className="p-6">
-              <div className="text-center py-12">
-                <Camera className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-foreground mb-2">
-                  Monitoramento de Câmeras
-                </h3>
-                <p className="text-muted-foreground mb-6">
-                  Visualize e gerencie câmeras IP da sua região
-                </p>
-                <Badge variant="outline">Em desenvolvimento</Badge>
-              </div>
-            </Card>
+          <TabsContent value="cameras" className="space-y-4">
+            {selectedCamera ? (
+              <CameraViewer
+                camera={selectedCamera}
+                onClose={() => setSelectedCamera(null)}
+              />
+            ) : (
+              <CameraList onCameraSelect={setSelectedCamera} />
+            )}
           </TabsContent>
 
           <TabsContent value="map" className="space-y-4">

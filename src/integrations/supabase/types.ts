@@ -51,6 +51,7 @@ export type Database = {
       }
       cameras: {
         Row: {
+          city: string | null
           created_at: string
           id: string
           ip_address: string
@@ -58,9 +59,13 @@ export type Database = {
           latitude: number
           longitude: number
           name: string
+          neighborhood: string | null
+          stream_url: string | null
+          street: string | null
           updated_at: string
         }
         Insert: {
+          city?: string | null
           created_at?: string
           id?: string
           ip_address: string
@@ -68,9 +73,13 @@ export type Database = {
           latitude: number
           longitude: number
           name: string
+          neighborhood?: string | null
+          stream_url?: string | null
+          street?: string | null
           updated_at?: string
         }
         Update: {
+          city?: string | null
           created_at?: string
           id?: string
           ip_address?: string
@@ -78,6 +87,9 @@ export type Database = {
           latitude?: number
           longitude?: number
           name?: string
+          neighborhood?: string | null
+          stream_url?: string | null
+          street?: string | null
           updated_at?: string
         }
         Relationships: []
