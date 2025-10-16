@@ -18,6 +18,7 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useAdmin } from "@/hooks/useAdmin";
 import logo from "@/assets/logo.png";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -32,6 +33,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, loading, signOut } = useAuth();
+  const { isAdmin } = useAdmin();
   const [menuOpen, setMenuOpen] = useState(false);
   const [profile, setProfile] = useState<any>(null);
   const [alerts, setAlerts] = useState<any[]>([]);
@@ -151,6 +153,12 @@ const Dashboard = () => {
             </div>
 
             <div className="hidden md:flex items-center gap-4">
+              {isAdmin && (
+                <Button variant="ghost" onClick={() => navigate('/admin')}>
+                  <Settings className="h-5 w-5 mr-2" />
+                  Painel Central
+                </Button>
+              )}
               <Button variant="ghost" size="icon">
                 <Bell className="h-5 w-5" />
               </Button>
