@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Users, UserPlus, Shield, ShieldOff } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Users, Shield, ShieldOff, Pencil } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
@@ -16,53 +16,36 @@ interface Profile {
   phone: string | null;
   address: string | null;
   created_at: string;
-  is_admin?: boolean;
+}
+
+interface UserRole {
+  user_id: string;
+  role: string;
 }
 
 const UserManagement = () => {
   const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [userRoles, setUserRoles] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
+  const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null);
+  const [editForm, setEditForm] = useState({ full_name: '', phone: '', address: '' });
   const { toast } = useToast();
-
-  const [formData, setFormData] = useState({
-    full_name: '',
-    phone: '',
-    address: '',
-  });
 
   useEffect(() => {
     fetchProfiles();
+    fetchUserRoles();
   }, []);
 
   const fetchProfiles = async () => {
     try {
-      const { data: profilesData, error: profilesError } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (profilesError) throw profilesError;
-
-      // Check admin status for each profile
-      const profilesWithAdmin = await Promise.all(
-        (profilesData || []).map(async (profile) => {
-          const { data: roleData } = await supabase
-            .from('user_roles')
-            .select('role')
-            .eq('user_id', profile.id)
-            .eq('role', 'admin')
-            .maybeSingle();
-
-          return {
-            ...profile,
-            is_admin: !!roleData,
-          };
-        })
-      );
-
-      setProfiles(profilesWithAdmin as Profile[]);
+      if (error) throw error;
+      setProfiles(data || []);
     } catch (error: any) {
       toast({
         title: 'Erro ao carregar usuários',
@@ -74,9 +57,27 @@ const UserManagement = () => {
     }
   };
 
-  const handleEdit = (profile: Profile) => {
-    setSelectedUser(profile);
-    setFormData({
+  const fetchUserRoles = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('user_id, role');
+
+      if (error) throw error;
+      
+      const rolesMap: Record<string, string> = {};
+      (data || []).forEach((ur: UserRole) => {
+        rolesMap[ur.user_id] = ur.role;
+      });
+      setUserRoles(rolesMap);
+    } catch (error: any) {
+      console.error('Error fetching user roles:', error);
+    }
+  };
+
+  const handleEditUser = (profile: Profile) => {
+    setSelectedProfile(profile);
+    setEditForm({
       full_name: profile.full_name,
       phone: profile.phone || '',
       address: profile.address || '',
@@ -84,29 +85,23 @@ const UserManagement = () => {
     setEditDialogOpen(true);
   };
 
-  const handleUpdate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedUser) return;
+  const handleUpdateUser = async () => {
+    if (!selectedProfile) return;
 
     try {
       const { error } = await supabase
         .from('profiles')
-        .update({
-          full_name: formData.full_name,
-          phone: formData.phone || null,
-          address: formData.address || null,
-        })
-        .eq('id', selectedUser.id);
+        .update(editForm)
+        .eq('id', selectedProfile.id);
 
       if (error) throw error;
 
       toast({
         title: 'Usuário atualizado!',
-        description: 'As informações foram atualizadas com sucesso.',
+        description: 'As informações foram salvas com sucesso.',
       });
 
       setEditDialogOpen(false);
-      setSelectedUser(null);
       fetchProfiles();
     } catch (error: any) {
       toast({
@@ -117,10 +112,9 @@ const UserManagement = () => {
     }
   };
 
-  const toggleAdmin = async (userId: string, isCurrentlyAdmin: boolean) => {
+  const handleToggleAdmin = async (userId: string, isCurrentlyAdmin: boolean) => {
     try {
       if (isCurrentlyAdmin) {
-        // Remove admin role
         const { error } = await supabase
           .from('user_roles')
           .delete()
@@ -130,11 +124,10 @@ const UserManagement = () => {
         if (error) throw error;
 
         toast({
-          title: 'Privilégios removidos',
-          description: 'Usuário não é mais administrador.',
+          title: 'Permissões atualizadas',
+          description: 'Usuário removido como administrador.',
         });
       } else {
-        // Add admin role
         const { error } = await supabase
           .from('user_roles')
           .insert({ user_id: userId, role: 'admin' });
@@ -142,15 +135,15 @@ const UserManagement = () => {
         if (error) throw error;
 
         toast({
-          title: 'Privilégios concedidos',
-          description: 'Usuário agora é administrador.',
+          title: 'Permissões atualizadas',
+          description: 'Usuário promovido a administrador.',
         });
       }
 
-      fetchProfiles();
+      fetchUserRoles();
     } catch (error: any) {
       toast({
-        title: 'Erro ao alterar privilégios',
+        title: 'Erro ao atualizar permissões',
         description: error.message,
         variant: 'destructive',
       });
@@ -171,6 +164,46 @@ const UserManagement = () => {
         </div>
       </div>
 
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Usuário</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit_name">Nome Completo</Label>
+              <Input
+                id="edit_name"
+                value={editForm.full_name}
+                onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit_phone">Telefone</Label>
+              <Input
+                id="edit_phone"
+                value={editForm.phone}
+                onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit_address">Endereço</Label>
+              <Input
+                id="edit_address"
+                value={editForm.address}
+                onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleUpdateUser}>Salvar</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <div className="border rounded-lg overflow-hidden">
         <Table>
           <TableHeader>
@@ -178,81 +211,47 @@ const UserManagement = () => {
               <TableHead>Nome</TableHead>
               <TableHead>Telefone</TableHead>
               <TableHead>Endereço</TableHead>
-              <TableHead>Função</TableHead>
               <TableHead>Data Cadastro</TableHead>
+              <TableHead>Papel</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {profiles.map((profile) => (
-              <TableRow key={profile.id}>
-                <TableCell className="font-medium">{profile.full_name}</TableCell>
-                <TableCell>{profile.phone || '-'}</TableCell>
-                <TableCell>{profile.address || '-'}</TableCell>
-                <TableCell>
-                  <Badge variant={profile.is_admin ? 'default' : 'secondary'}>
-                    {profile.is_admin ? 'Admin' : 'Usuário'}
-                  </Badge>
-                </TableCell>
-                <TableCell>{new Date(profile.created_at).toLocaleDateString('pt-BR')}</TableCell>
-                <TableCell className="text-right space-x-2">
-                  <Button variant="ghost" size="sm" onClick={() => handleEdit(profile)}>
-                    Editar
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => toggleAdmin(profile.id, profile.is_admin || false)}
-                  >
-                    {profile.is_admin ? <ShieldOff className="h-4 w-4" /> : <Shield className="h-4 w-4" />}
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
+            {profiles.map((profile) => {
+              const isAdmin = userRoles[profile.id] === 'admin';
+              return (
+                <TableRow key={profile.id}>
+                  <TableCell className="font-medium">{profile.full_name}</TableCell>
+                  <TableCell>{profile.phone || '-'}</TableCell>
+                  <TableCell>{profile.address || '-'}</TableCell>
+                  <TableCell>{new Date(profile.created_at).toLocaleDateString('pt-BR')}</TableCell>
+                  <TableCell>
+                    <Badge variant={isAdmin ? 'default' : 'secondary'}>
+                      {isAdmin ? 'Admin' : 'Usuário'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right space-x-2">
+                    <Button variant="ghost" size="sm" onClick={() => handleEditUser(profile)}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleToggleAdmin(profile.id, isAdmin)}
+                    >
+                      {isAdmin ? (
+                        <ShieldOff className="h-4 w-4 text-destructive" />
+                      ) : (
+                        <Shield className="h-4 w-4 text-primary" />
+                      )}
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </div>
-
-      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Editar Usuário</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleUpdate} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="full_name">Nome Completo</Label>
-              <Input
-                id="full_name"
-                value={formData.full_name}
-                onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="phone">Telefone</Label>
-              <Input
-                id="phone"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="address">Endereço</Label>
-              <Input
-                id="address"
-                value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-              />
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => setEditDialogOpen(false)}>
-                Cancelar
-              </Button>
-              <Button type="submit">Salvar</Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
     </Card>
   );
 };

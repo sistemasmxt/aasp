@@ -23,6 +23,11 @@ interface Payment {
   } | null;
 }
 
+interface Profile {
+  id: string;
+  full_name: string;
+}
+
 const PaymentManagement = () => {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
@@ -68,7 +73,56 @@ const PaymentManagement = () => {
           return {
             ...payment,
             profiles: profile,
-          };
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (editingPayment) {
+        const { error } = await supabase.from('payments').update({
+          user_id: formData.user_id,
+          amount: parseFloat(formData.amount),
+          due_date: formData.due_date,
+          status: formData.status,
+        }).eq('id', editingPayment.id);
+        if (error) throw error;
+        toast({ title: 'Pagamento atualizado!' });
+      } else {
+        const { error } = await supabase.from('payments').insert({
+          user_id: formData.user_id,
+          amount: parseFloat(formData.amount),
+          due_date: formData.due_date,
+          status: formData.status,
+        });
+        if (error) throw error;
+        toast({ title: 'Pagamento criado!' });
+      }
+      setDialogOpen(false);
+      setEditingPayment(null);
+      setFormData({ user_id: '', amount: '', due_date: '', status: 'pending' });
+      fetchPayments();
+    } catch (error: any) {
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+    }
+  };
+
+  const handleEdit = (payment: Payment) => {
+    setEditingPayment(payment);
+    setFormData({ user_id: payment.user_id, amount: payment.amount.toString(), due_date: payment.due_date, status: payment.status });
+    setDialogOpen(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Excluir pagamento?')) return;
+    try {
+      const { error } = await supabase.from('payments').delete().eq('id', id);
+      if (error) throw error;
+      toast({ title: 'Pagamento excluído' });
+      fetchPayments();
+    } catch (error: any) {
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+    }
+  };
         })
       );
 
