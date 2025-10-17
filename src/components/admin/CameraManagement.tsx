@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Camera, Plus } from 'lucide-react';
+import { Camera, Plus, Trash2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -126,6 +126,29 @@ const CameraManagement = () => {
     } catch (error: any) {
       toast({
         title: 'Erro ao atualizar status',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Deseja realmente excluir esta câmera?')) return;
+
+    try {
+      const { error } = await supabase.from('cameras').delete().eq('id', id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Câmera excluída',
+        description: 'A câmera foi removida com sucesso.',
+      });
+
+      fetchCameras();
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao excluir câmera',
         description: error.message,
         variant: 'destructive',
       });
@@ -259,13 +282,20 @@ const CameraManagement = () => {
                     {camera.is_active ? 'Ativa' : 'Inativa'}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-right">
+                <TableCell className="text-right space-x-2">
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => toggleCamera(camera.id, camera.is_active)}
                   >
                     {camera.is_active ? 'Desativar' : 'Ativar'}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDelete(camera.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
                   </Button>
                 </TableCell>
               </TableRow>
