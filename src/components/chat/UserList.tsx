@@ -11,7 +11,11 @@ interface UserListProps {
 }
 
 export const UserList = ({ currentUserId, selectedUserId, onSelectUser }: UserListProps) => {
-  const [users, setUsers] = useState<any[]>([]);
+  const [users, setUsers] = useState<{
+    id: string;
+    full_name: string;
+    avatar_url: string | null;
+  }[]>([]);
 
   useEffect(() => {
     const loadUsers = async () => {

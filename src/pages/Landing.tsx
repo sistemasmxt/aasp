@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Shield, Camera, Users, Bell, MapPin, MessageCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import heroImage from "@/assets/hero-security.jpg";
-import logo from "@/assets/logo.png";
+import logo from "@/img/logo.png";
 const Landing = () => {
   const navigate = useNavigate();
   const features = [{
@@ -172,7 +172,7 @@ const Landing = () => {
             Junte-se a milhares de associados que já confiam na AASP
           </p>
           <Button onClick={() => navigate("/auth")} size="lg" className="bg-white text-primary hover:bg-white/90">
-            Começar Gratuitamente
+            Começar Grátis
           </Button>
         </div>
       </section>
@@ -209,7 +209,7 @@ const Landing = () => {
             <div>
               <h4 className="font-semibold text-foreground mb-4">Suporte</h4>
               <ul className="space-y-2 text-muted-foreground">
-                <li><a href="#" className="hover:text-foreground transition-colors">Central de Ajuda</a></li>
+                <li><a href="#" className="hover:text-foreground transition-colors">Centro de Ajuda</a></li>
                 <li><a href="#" className="hover:text-foreground transition-colors">Contato</a></li>
                 <li><a href="#" className="hover:text-foreground transition-colors">Status</a></li>
               </ul>

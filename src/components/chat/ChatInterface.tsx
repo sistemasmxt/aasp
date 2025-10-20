@@ -9,7 +9,11 @@ import { MessageCircle } from "lucide-react";
 export const ChatInterface = () => {
   const { user } = useAuth();
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-  const [selectedUserProfile, setSelectedUserProfile] = useState<any>(null);
+  const [selectedUserProfile, setSelectedUserProfile] = useState<{
+    id: string;
+    full_name: string;
+    avatar_url: string | null;
+  } | null>(null);
 
   console.log("=== ChatInterface Rendered ===");
   console.log("Current user:", user?.id);

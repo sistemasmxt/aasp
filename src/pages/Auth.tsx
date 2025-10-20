@@ -8,7 +8,7 @@ import { Mail, Lock, User, Phone } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import logo from "@/assets/logo.png";
+import logo from "@/img/logo.png";
 import { z } from "zod";
 import { mapErrorToUserMessage } from "@/lib/errorHandler";
 

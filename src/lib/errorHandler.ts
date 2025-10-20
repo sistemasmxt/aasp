@@ -2,13 +2,13 @@
  * Maps internal error messages to user-friendly messages
  * Prevents information disclosure while maintaining good UX
  */
-export function mapErrorToUserMessage(error: any): string {
+export function mapErrorToUserMessage(error: unknown): string {
   // Log full error for debugging (only in development)
   if (import.meta.env.DEV) {
     console.error('Detailed error:', error);
   }
   
-  const errorMessage = error?.message?.toLowerCase() || '';
+  const errorMessage = (error as { message?: string })?.message?.toLowerCase() || '';
   
   // Authentication errors - use same message for username enumeration prevention
   if (errorMessage.includes('invalid login credentials') || 

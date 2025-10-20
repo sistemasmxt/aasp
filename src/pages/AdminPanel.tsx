@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useAdmin } from '@/hooks/useAdmin';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Users, Camera, DollarSign, Shield } from 'lucide-react';
+import { ArrowLeft, Users, Camera, DollarSign, Shield, LogOut } from 'lucide-react';
+import logo from '@/img/logo.png';
+import { useToast } from '@/hooks/use-toast';
 import UserManagement from '@/components/admin/UserManagementEnhanced';
 import CameraManagement from '@/components/admin/CameraManagementEnhanced';
 import PaymentManagement from '@/components/admin/PaymentManagement';
@@ -14,9 +16,20 @@ import AuditLogs from '@/components/admin/AuditLogs';
 const AdminPanel = () => {
   const { isAdmin, loading } = useAdmin();
   const navigate = useNavigate();
+  const { toast } = useToast();
+
+  const handleLogout = () => {
+    sessionStorage.removeItem('adminLoggedIn');
+    toast({
+      title: "Logout realizado",
+      description: "Você foi desconectado do painel administrativo"
+    });
+    navigate('/admin-login');
+  };
 
   useEffect(() => {
     if (!loading && !isAdmin) {
+      console.log('User is not admin, redirecting to dashboard');
       navigate('/dashboard');
     }
   }, [isAdmin, loading, navigate]);
@@ -43,13 +56,17 @@ const AdminPanel = () => {
                 <ArrowLeft className="h-5 w-5" />
               </Button>
               <div className="flex items-center gap-3">
-                <Shield className="h-8 w-8 text-primary" />
+                <img src={logo} alt="AASP Logo" className="h-8 w-8" />
                 <div>
                   <h1 className="text-2xl font-bold text-foreground">Painel Central</h1>
                   <p className="text-sm text-muted-foreground">Administração AASP</p>
                 </div>
               </div>
             </div>
+            <Button variant="outline" size="sm" onClick={handleLogout}>
+              <LogOut className="h-4 w-4 mr-2" />
+              Logout
+            </Button>
           </div>
         </div>
       </header>

@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,11 +12,24 @@ import { cn } from "@/lib/utils";
 interface ChatMessagesProps {
   currentUserId: string;
   recipientId: string;
-  recipientProfile: any;
+  recipientProfile: {
+    id: string;
+    full_name: string;
+    avatar_url: string | null;
+  } | null;
 }
 
 export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: ChatMessagesProps) => {
-  const [messages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<{
+    id: string;
+    sender_id: string;
+    receiver_id: string | null;
+    content: string | null;
+    message_type: string;
+    is_group: boolean;
+    created_at: string;
+    group_id: string | null;
+  }[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -25,7 +38,7 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
   useEffect(() => {
     console.log("Loading messages for:", currentUserId, "->", recipientId);
     loadMessages();
-    
+
     const channel = supabase
       .channel(`chat:${currentUserId}:${recipientId}`)
       .on(
@@ -37,7 +50,16 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
         },
         (payload) => {
           console.log("New message received:", payload);
-          const msg = payload.new as any;
+          const msg = payload.new as {
+            id: string;
+            sender_id: string;
+            receiver_id: string | null;
+            content: string | null;
+            message_type: string;
+            is_group: boolean;
+            created_at: string;
+            group_id: string | null;
+          };
           if (
             (msg.sender_id === recipientId && msg.receiver_id === currentUserId) ||
             (msg.sender_id === currentUserId && msg.receiver_id === recipientId)
@@ -63,7 +85,7 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
     scrollToBottom();
   }, [messages]);
 
-  const loadMessages = async () => {
+  const loadMessages = useCallback(async () => {
     console.log("Loading messages between:", currentUserId, "and", recipientId);
     const { data, error } = await supabase
       .from("messages")
@@ -75,11 +97,11 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
       .order("created_at", { ascending: true });
 
     console.log("Messages loaded:", data?.length || 0, "Error:", error);
-    
+
     if (data) {
       setMessages(data);
     }
-  };
+  }, [currentUserId, recipientId]);
 
   const scrollToBottom = () => {
     if (scrollRef.current) {
@@ -111,7 +133,7 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
       if (error) throw error;
 
       setNewMessage("");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error sending message:", error);
       toast({
         title: "Erro ao enviar mensagem",

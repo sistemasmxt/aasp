@@ -1,44 +1,22 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from './useAuth';
 
 export const useAdmin = () => {
-  const { user } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const checkAdminStatus = async () => {
-      if (!user) {
-        setIsAdmin(false);
-        setLoading(false);
-        return;
-      }
+    const checkAdminStatus = () => {
+      // Verificar se admin está logado via sessionStorage
+      const adminLoggedIn = sessionStorage.getItem('adminLoggedIn') === 'true';
 
-      try {
-        const { data, error } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', user.id)
-          .eq('role', 'admin')
-          .maybeSingle();
+      console.log('Admin check via sessionStorage:', adminLoggedIn);
 
-        if (error) {
-          console.error('Error checking admin status:', error);
-          setIsAdmin(false);
-        } else {
-          setIsAdmin(!!data);
-        }
-      } catch (error) {
-        console.error('Error checking admin status:', error);
-        setIsAdmin(false);
-      } finally {
-        setLoading(false);
-      }
+      setIsAdmin(adminLoggedIn);
+      setLoading(false);
     };
 
     checkAdminStatus();
-  }, [user]);
+  }, []);
 
   return { isAdmin, loading };
 };

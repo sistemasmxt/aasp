@@ -7,7 +7,7 @@ interface LogAuditParams {
   action: AuditAction;
   table_name: AuditTable;
   record_id?: string;
-  details?: Record<string, any>;
+  details?: Record<string, unknown> | null;
 }
 
 export const logAudit = async ({ action, table_name, record_id, details }: LogAuditParams) => {

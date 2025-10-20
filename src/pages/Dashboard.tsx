@@ -18,8 +18,7 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { useAdmin } from "@/hooks/useAdmin";
-import logo from "@/assets/logo.png";
+import logo from "@/img/logo.png";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -27,17 +26,34 @@ import { mapErrorToUserMessage } from "@/lib/errorHandler";
 import { ChatInterface } from "@/components/chat/ChatInterface";
 import Map from "@/components/Map";
 import CameraList from "@/components/cameras/CameraList";
-import CameraViewer from "@/components/cameras/CameraViewer";
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, loading, signOut } = useAuth();
-  const { isAdmin } = useAdmin();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [profile, setProfile] = useState<any>(null);
-  const [alerts, setAlerts] = useState<any[]>([]);
-  const [selectedCamera, setSelectedCamera] = useState<any>(null);
+  const [profile, setProfile] = useState<{
+    id: string;
+    full_name: string;
+    phone: string | null;
+    address: string | null;
+    latitude: number | null;
+    longitude: number | null;
+    avatar_url: string | null;
+    created_at: string;
+    updated_at: string;
+  } | null>(null);
+  const [alerts, setAlerts] = useState<{
+    id: string;
+    user_id: string;
+    alert_type: string;
+    latitude: number;
+    longitude: number;
+    message: string | null;
+    is_active: boolean;
+    created_at: string;
+    resolved_at: string | null;
+  }[]>([]);
 
   // Protection is now handled by ProtectedRoute wrapper
   // This component only renders for authenticated users
@@ -72,7 +88,7 @@ const Dashboard = () => {
             table: "emergency_alerts",
           },
           (payload) => {
-            setAlerts((prev) => [payload.new, ...prev].slice(0, 5));
+            setAlerts((prev) => [payload.new as typeof prev[0], ...prev].slice(0, 5));
             toast({
               title: "⚠️ Novo Alerta de Emergência!",
               description: `Tipo: ${payload.new.alert_type}`,
@@ -121,7 +137,7 @@ const Dashboard = () => {
             description: "Alerta enviado para todos os associados",
             variant: "destructive",
           });
-        } catch (error: any) {
+    } catch (error: unknown) {
           toast({
             title: "Erro ao enviar alerta",
             description: mapErrorToUserMessage(error),
@@ -153,12 +169,6 @@ const Dashboard = () => {
             </div>
 
             <div className="hidden md:flex items-center gap-4">
-              {isAdmin && (
-                <Button variant="ghost" onClick={() => navigate('/admin')}>
-                  <Settings className="h-5 w-5 mr-2" />
-                  Painel Central
-                </Button>
-              )}
               <Button variant="ghost" size="icon">
                 <Bell className="h-5 w-5" />
               </Button>
@@ -326,14 +336,7 @@ const Dashboard = () => {
           </TabsContent>
 
           <TabsContent value="cameras" className="space-y-4">
-            {selectedCamera ? (
-              <CameraViewer
-                camera={selectedCamera}
-                onClose={() => setSelectedCamera(null)}
-              />
-            ) : (
-              <CameraList onCameraSelect={setSelectedCamera} />
-            )}
+            <CameraList onCameraSelect={() => {}} />
           </TabsContent>
 
           <TabsContent value="map" className="space-y-4">
