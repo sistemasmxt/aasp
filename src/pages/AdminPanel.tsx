@@ -4,10 +4,12 @@ import { useAdmin } from '@/hooks/useAdmin';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft, Users, Camera, DollarSign, Shield } from 'lucide-react';
-import UserManagement from '@/components/admin/UserManagement';
-import CameraManagement from '@/components/admin/CameraManagement';
+import UserManagement from '@/components/admin/UserManagementEnhanced';
+import CameraManagement from '@/components/admin/CameraManagementEnhanced';
 import PaymentManagement from '@/components/admin/PaymentManagement';
-import GroupManagement from '@/components/admin/GroupManagement';
+import GroupManagement from '@/components/admin/GroupManagementEnhanced';
+import AdminDashboard from '@/components/admin/AdminDashboard';
+import AuditLogs from '@/components/admin/AuditLogs';
 
 const AdminPanel = () => {
   const { isAdmin, loading } = useAdmin();
@@ -53,8 +55,12 @@ const AdminPanel = () => {
       </header>
 
       <div className="container mx-auto px-4 py-8">
-        <Tabs defaultValue="users" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+        <Tabs defaultValue="dashboard" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-6">
+            <TabsTrigger value="dashboard">
+              <Shield className="h-4 w-4 mr-2" />
+              Dashboard
+            </TabsTrigger>
             <TabsTrigger value="users">
               <Users className="h-4 w-4 mr-2" />
               Usuários
@@ -71,7 +77,15 @@ const AdminPanel = () => {
               <Users className="h-4 w-4 mr-2" />
               Grupos
             </TabsTrigger>
+            <TabsTrigger value="logs">
+              <Shield className="h-4 w-4 mr-2" />
+              Logs
+            </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="dashboard">
+            <AdminDashboard />
+          </TabsContent>
 
           <TabsContent value="users">
             <UserManagement />
@@ -87,6 +101,10 @@ const AdminPanel = () => {
 
           <TabsContent value="groups">
             <GroupManagement />
+          </TabsContent>
+
+          <TabsContent value="logs">
+            <AuditLogs />
           </TabsContent>
         </Tabs>
       </div>
