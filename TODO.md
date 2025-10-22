@@ -1,5 +1,6 @@
-- [ ] Modificar AdminLogin.tsx para usar autenticação simples com credenciais hardcoded e sessionStorage
-- [ ] Atualizar useAdmin.ts para verificar sessionStorage ao invés de Supabase auth
-- [ ] Ajustar ProtectedRoute.tsx para admin check independente
-- [ ] Adicionar logout no AdminPanel para limpar sessionStorage
-- [ ] Testar o fluxo de login admin
+- [x] Modificar AdminLogin.tsx para usar autenticação simples com credenciais hardcoded e sessionStorage
+- [x] Atualizar useAdmin.ts para verificar sessionStorage ao invés de Supabase auth
+- [x] Ajustar ProtectedRoute.tsx para admin check independente
+- [x] Adicionar logout no AdminPanel para limpar sessionStorage
+- [x] Testar o fluxo de login admin
+- [ ] Investigar erro ao enviar mensagem no chat do dashboard

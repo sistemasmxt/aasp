@@ -6,10 +6,8 @@ import { Card } from "@/components/ui/card";
 import { Mail, Lock, Shield } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import logo from "@/img/logo.png";
 import { z } from "zod";
-import { mapErrorToUserMessage } from "@/lib/errorHandler";
 
 // Schema de validação para login de admin
 const adminLoginSchema = z.object({
@@ -33,46 +31,17 @@ const AdminLogin = () => {
     checkAdminSession();
   }, []); // Remove navigate from dependencies to prevent re-runs
 
-  const checkAdminSession = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        // Verificar se é admin usando user_roles table
-        const { data: roleData, error: roleError } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', session.user.id)
-          .eq('role', 'admin')
-          .maybeSingle();
-
-        if (roleError) {
-          console.error('Error checking admin role:', roleError);
-          return;
-        }
-
-        // Also check if user email is in admin list (fallback for initial setup)
-        const adminEmails = ['admin@aasp.com', 'sistemasmxt@gmail.com'];
-        const isEmailAdmin = adminEmails.includes(session.user.email || '');
-
-        // User is admin if they have admin role OR their email is in admin list
-        const hasAdminAccess = !!roleData || isEmailAdmin;
-
-        if (hasAdminAccess) {
-          // Use setTimeout to avoid potential navigation conflicts
-          setTimeout(() => {
-            navigate("/admin", { replace: true });
-          }, 100);
-        }
-      }
-    } catch (error) {
-      console.error('Error checking admin session:', error);
-      // Ignorar erro, usuário não está logado
-    } finally {
-      setIsLoading(false);
+  const checkAdminSession = () => {
+    const adminLoggedIn = sessionStorage.getItem('adminLoggedIn') === 'true';
+    if (adminLoggedIn) {
+      setTimeout(() => {
+        navigate("/admin", { replace: true });
+      }, 100);
     }
+    setIsLoading(false);
   };
 
-  const handleAdminLogin = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleAdminLogin = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
 
@@ -86,40 +55,16 @@ const AdminLogin = () => {
       // Validar entrada
       const validatedData = adminLoginSchema.parse(rawData);
 
-      // Tentar fazer login com Supabase Auth
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: validatedData.email,
-        password: validatedData.password,
-      });
+      // Credenciais hardcoded para admin
+      const adminCredentials = {
+        email: 'admin@aasp.com',
+        password: 'admin123'
+      };
 
-      if (error) throw error;
-
-      // Verificar se o usuário é admin
-      if (data.user) {
-        const { data: roleData, error: roleError } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', data.user.id)
-          .eq('role', 'admin')
-          .maybeSingle();
-
-        if (roleError) {
-          console.error('Error checking admin role:', roleError);
-          throw new Error('Erro ao verificar permissões administrativas');
-        }
-
-        // Also check if user email is in admin list (fallback for initial setup)
-        const adminEmails = ['admin@aasp.com', 'sistemasmxt@gmail.com'];
-        const isEmailAdmin = adminEmails.includes(data.user.email || '');
-
-        // User is admin if they have admin role OR their email is in admin list
-        const hasAdminAccess = !!roleData || isEmailAdmin;
-
-        if (!hasAdminAccess) {
-          // Logout if not admin
-          await supabase.auth.signOut();
-          throw new Error('Acesso negado. Você não tem permissões administrativas.');
-        }
+      // Verificar credenciais
+      if (validatedData.email === adminCredentials.email && validatedData.password === adminCredentials.password) {
+        // Login bem-sucedido, salvar no sessionStorage
+        sessionStorage.setItem('adminLoggedIn', 'true');
 
         toast({
           title: "Login administrativo realizado com sucesso!",
@@ -128,6 +73,8 @@ const AdminLogin = () => {
 
         // Navigate to admin panel
         navigate("/admin", { replace: true });
+      } else {
+        throw new Error('Credenciais inválidas. Acesso negado.');
       }
     } catch (error: any) {
       console.error('Login error:', error);
@@ -140,7 +87,7 @@ const AdminLogin = () => {
       } else {
         toast({
           title: "Erro ao fazer login administrativo",
-          description: mapErrorToUserMessage(error),
+          description: error.message || "Credenciais inválidas",
           variant: "destructive"
         });
       }
