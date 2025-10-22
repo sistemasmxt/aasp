@@ -26,6 +26,7 @@ import { mapErrorToUserMessage } from "@/lib/errorHandler";
 import { ChatInterface } from "@/components/chat/ChatInterface";
 import Map from "@/components/Map";
 import CameraList from "@/components/cameras/CameraList";
+import { ProfileEditModal } from "@/components/ProfileEditModal";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -199,9 +200,7 @@ const Dashboard = () => {
               <Button variant="ghost" size="icon">
                 <Bell className="h-5 w-5" />
               </Button>
-              <Button variant="ghost" size="icon">
-                <Settings className="h-5 w-5" />
-              </Button>
+              <ProfileEditModal profile={profile} onProfileUpdate={setProfile} />
               <div className="flex items-center gap-3 ml-4">
                 <Avatar>
                   <AvatarImage src={profile?.avatar_url || ""} />
