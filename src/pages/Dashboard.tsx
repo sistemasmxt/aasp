@@ -104,12 +104,39 @@ const Dashboard = () => {
     }
   }, [user, toast]);
 
-  const stats = [
-    { label: "Associados Ativos", value: "1,247", icon: Users, color: "text-primary" },
-    { label: "Câmeras Ativas", value: "84", icon: Camera, color: "text-accent" },
+  const [stats, setStats] = useState([
+    { label: "Associados Ativos", value: "0", icon: Users, color: "text-primary" },
+    { label: "Câmeras Ativas", value: "0", icon: Camera, color: "text-accent" },
     { label: "Alertas Hoje", value: alerts.length.toString(), icon: Bell, color: "text-warning" },
     { label: "Status Pagamento", value: "Em dia", icon: DollarSign, color: "text-success" },
-  ];
+  ]);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const [
+          { count: usersCount },
+          { data: cameras },
+        ] = await Promise.all([
+          supabase.from('profiles').select('*', { count: 'exact', head: true }),
+          supabase.from('cameras').select('is_active'),
+        ]);
+
+        const activeCameras = cameras?.filter(c => c.is_active).length || 0;
+
+        setStats([
+          { label: "Associados Ativos", value: (usersCount || 0).toString(), icon: Users, color: "text-primary" },
+          { label: "Câmeras Ativas", value: activeCameras.toString(), icon: Camera, color: "text-accent" },
+          { label: "Alertas Hoje", value: alerts.length.toString(), icon: Bell, color: "text-warning" },
+          { label: "Status Pagamento", value: "Em dia", icon: DollarSign, color: "text-success" },
+        ]);
+      } catch (error) {
+        console.error('Error fetching stats:', error);
+      }
+    };
+
+    fetchStats();
+  }, [alerts.length]);
 
   const handleLogout = async () => {
     await signOut();
@@ -300,7 +327,7 @@ const Dashboard = () => {
                   <Camera className="h-6 w-6 mr-3 text-primary" />
                   <div className="text-left">
                     <p className="font-medium">Visualizar Câmeras</p>
-                    <p className="text-xs text-muted-foreground">84 câmeras disponíveis</p>
+                    <p className="text-xs text-muted-foreground">{stats[1].value} câmeras disponíveis</p>
                   </div>
                 </Button>
                 <Button variant="outline" className="h-20 justify-start">
@@ -321,7 +348,7 @@ const Dashboard = () => {
                   <Users className="h-6 w-6 mr-3 text-primary" />
                   <div className="text-left">
                     <p className="font-medium">Associados</p>
-                    <p className="text-xs text-muted-foreground">1,247 membros</p>
+                    <p className="text-xs text-muted-foreground">{stats[0].value} membros</p>
                   </div>
                 </Button>
               </div>
