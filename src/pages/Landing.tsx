@@ -32,21 +32,11 @@ const Landing = () => {
     description: "Mapa interativo mostrando pontos de monitoramento"
   }];
   const plans = [{
-    name: "Básico",
-    price: "R$ 49,90",
-    period: "/mês",
-    features: ["Acesso ao chat da comunidade", "Alertas de emergência", "Visualização de câmeras públicas", "Suporte por email"]
-  }, {
     name: "Premium",
-    price: "R$ 89,90",
+    price: "R$ 140,00",
     period: "/mês",
     featured: true,
-    features: ["Tudo do plano Básico", "Câmeras particulares ilimitadas", "Prioridade em alertas", "Suporte 24/7", "Histórico de eventos 90 dias"]
-  }, {
-    name: "Empresarial",
-    price: "Sob consulta",
-    period: "",
-    features: ["Tudo do plano Premium", "Dashboard administrativo", "Gestão de múltiplos locais", "API de integração", "Treinamento personalizado"]
+    features: ["Acesso ao chat da comunidade", "Alertas de emergência", "Câmeras particulares ilimitadas", "Prioridade em alertas", "Suporte 24/7", "Histórico de eventos 90 dias"]
   }];
   return <div className="min-h-screen bg-background">
       {/* Header */}
@@ -132,7 +122,7 @@ const Landing = () => {
               Escolha o plano ideal para suas necessidades
             </p>
           </div>
-          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+          <div className="grid md:grid-cols-1 gap-8 max-w-md mx-auto">
             {plans.map((plan, index) => <Card key={index} className={`p-8 ${plan.featured ? 'border-primary border-2 shadow-glow' : ''} hover:scale-105 transition-transform duration-300`}>
                 {plan.featured && <div className="bg-primary text-primary-foreground text-sm font-semibold px-3 py-1 rounded-full w-fit mb-4">
                     Mais Popular
