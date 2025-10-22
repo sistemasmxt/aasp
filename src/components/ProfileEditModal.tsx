@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { mapErrorToUserMessage } from "@/lib/errorHandler";
-import { Camera, Upload, Save, Key } from "lucide-react";
+import { Settings, Upload, Save, Key } from "lucide-react";
 
 interface ProfileEditModalProps {
   profile: {
@@ -193,7 +193,7 @@ export const ProfileEditModal = ({ profile, onProfileUpdate }: ProfileEditModalP
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="ghost" size="icon">
-          <Camera className="h-5 w-5" />
+          <Settings className="h-5 w-5" />
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
