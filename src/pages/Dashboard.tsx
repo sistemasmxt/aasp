@@ -27,12 +27,16 @@ import { ChatInterface } from "@/components/chat/ChatInterface";
 import Map from "@/components/Map";
 import CameraList from "@/components/cameras/CameraList";
 import { ProfileEditModal } from "@/components/ProfileEditModal";
+import { useEmergencyAlerts } from "@/hooks/useEmergencyAlerts";
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, loading, signOut } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+
+  // Initialize emergency alerts hook
+  useEmergencyAlerts(user?.id);
   const [profile, setProfile] = useState<{
     id: string;
     full_name: string;
@@ -54,6 +58,7 @@ const Dashboard = () => {
     is_active: boolean;
     created_at: string;
     resolved_at: string | null;
+    user_name?: string;
   }[]>([]);
 
   // Protection is now handled by ProtectedRoute wrapper
@@ -69,14 +74,25 @@ const Dashboard = () => {
         .single()
         .then(({ data }) => setProfile(data));
 
-      // Load recent alerts
+      // Load recent alerts with user names
       supabase
         .from("emergency_alerts")
-        .select("*")
+        .select(`
+          *,
+          profiles:user_id (
+            full_name
+          )
+        `)
         .eq("is_active", true)
         .order("created_at", { ascending: false })
-        .limit(5)
-        .then(({ data }) => setAlerts(data || []));
+        .limit(10)
+        .then(({ data }) => {
+          const alertsWithNames = data?.map(alert => ({
+            ...alert,
+            user_name: alert.profiles?.full_name || "Usuário"
+          })) || [];
+          setAlerts(alertsWithNames);
+        });
 
       // Subscribe to new alerts
       const channel = supabase
@@ -88,11 +104,23 @@ const Dashboard = () => {
             schema: "public",
             table: "emergency_alerts",
           },
-          (payload) => {
-            setAlerts((prev) => [payload.new as typeof prev[0], ...prev].slice(0, 5));
+          async (payload) => {
+            // Fetch user name for the new alert
+            const { data: userProfile } = await supabase
+              .from("profiles")
+              .select("full_name")
+              .eq("id", payload.new.user_id)
+              .single();
+
+            const alertWithName = {
+              ...payload.new,
+              user_name: userProfile?.full_name || "Usuário"
+            };
+
+            setAlerts((prev) => [alertWithName, ...prev].slice(0, 10));
             toast({
               title: "⚠️ Novo Alerta de Emergência!",
-              description: `Tipo: ${payload.new.alert_type}`,
+              description: `${userProfile?.full_name || "Usuário"} ativou um alerta de ${payload.new.alert_type}`,
               variant: "destructive",
             });
           }
@@ -150,22 +178,29 @@ const Dashboard = () => {
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         try {
-          const { error } = await supabase.from("emergency_alerts").insert({
+          const { data, error } = await supabase.from("emergency_alerts").insert({
             user_id: user.id,
             alert_type: "emergency",
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
             message: "Alerta SOS ativado!",
-          });
+          }).select().single();
 
           if (error) throw error;
+
+          // Play alert sound for the user who sent the alert
+          const audio = new Audio('/sounds/alerta.mp3');
+          audio.volume = 0.8;
+          audio.play().catch(error => {
+            console.warn('Could not play alert sound:', error);
+          });
 
           toast({
             title: "🚨 SOS Ativado!",
             description: "Alerta enviado para todos os associados",
             variant: "destructive",
           });
-    } catch (error: unknown) {
+        } catch (error: unknown) {
           toast({
             title: "Erro ao enviar alerta",
             description: mapErrorToUserMessage(error),
@@ -197,8 +232,16 @@ const Dashboard = () => {
             </div>
 
             <div className="hidden md:flex items-center gap-4">
-              <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" className="relative">
                 <Bell className="h-5 w-5" />
+                {alerts.length > 0 && (
+                  <Badge
+                    variant="destructive"
+                    className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs"
+                  >
+                    {alerts.length}
+                  </Badge>
+                )}
               </Button>
               <ProfileEditModal profile={profile} onProfileUpdate={setProfile} />
               <div className="flex items-center gap-3 ml-4">
@@ -300,7 +343,7 @@ const Dashboard = () => {
                       <AlertCircle className="h-5 w-5 mt-0.5 text-emergency" />
                       <div className="flex-1">
                         <p className="text-sm text-foreground">
-                          {alert.alert_type === "robbery"
+                          <strong>{alert.user_name}</strong> - {alert.alert_type === "robbery"
                             ? "Assalto"
                             : alert.alert_type === "assault"
                             ? "Agressão"
@@ -308,7 +351,7 @@ const Dashboard = () => {
                           {alert.message && ` - ${alert.message}`}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          {new Date(alert.created_at).toLocaleString("pt-BR")}
+                          📍 Lat: {alert.latitude.toFixed(6)}, Lon: {alert.longitude.toFixed(6)} • {new Date(alert.created_at).toLocaleString("pt-BR")}
                         </p>
                       </div>
                     </div>

@@ -387,6 +387,13 @@ export const ProfileEditModal = ({ profile, onProfileUpdate }: ProfileEditModalP
 
       if (error) {
         console.warn('Folder creation warning (might already exist):', error.message);
+        // If bucket doesn't exist, try to create it
+        if (error.message.includes('Bucket not found')) {
+          console.log('🔄 Bucket not found, attempting to create avatars bucket...');
+          // Note: This would require admin privileges, so we'll skip folder creation for now
+          console.log('⚠️ Skipping folder creation - bucket may not exist');
+          return;
+        }
       } else {
         // Clean up the temporary file
         await supabase.storage
