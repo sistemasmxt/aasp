@@ -74,7 +74,7 @@ const Dashboard = () => {
         .from("emergency_alerts")
         .select(`
           *,
-          profiles:user_id (
+          profiles!user_id (
             full_name
           )
         `)
