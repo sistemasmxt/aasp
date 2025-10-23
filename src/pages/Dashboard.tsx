@@ -72,21 +72,32 @@ const Dashboard = () => {
       // Load recent alerts with user names
       supabase
         .from("emergency_alerts")
-        .select(`
-          *,
-          profiles!user_id (
-            full_name
-          )
-        `)
+        .select("*")
         .eq("is_active", true)
         .order("created_at", { ascending: false })
         .limit(10)
-        .then(({ data }) => {
-          const alertsWithNames = data?.map(alert => ({
-            ...alert,
-            user_name: alert.profiles?.full_name || "Usuário"
-          })) || [];
-          setAlerts(alertsWithNames);
+        .then(async ({ data: alertsData }) => {
+          if (alertsData && alertsData.length > 0) {
+            const userIds = alertsData.map(alert => alert.user_id);
+            const { data: profilesData } = await supabase
+              .from("profiles")
+              .select("id, full_name")
+              .in("id", userIds);
+
+            const profilesMap = profilesData?.reduce((acc, profile) => {
+              acc[profile.id] = profile.full_name;
+              return acc;
+            }, {} as Record<string, string>) || {};
+
+            const alertsWithNames = alertsData.map(alert => ({
+              ...alert,
+              user_name: profilesMap[alert.user_id] || "Usuário"
+            }));
+
+            setAlerts(alertsWithNames);
+          } else {
+            setAlerts([]);
+          }
         });
 
       // Subscribe to new alerts
