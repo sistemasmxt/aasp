@@ -27,16 +27,11 @@ import { ChatInterface } from "@/components/chat/ChatInterface";
 import Map from "@/components/Map";
 import CameraList from "@/components/cameras/CameraList";
 import { ProfileEditModal } from "@/components/ProfileEditModal";
-import { useEmergencyAlerts } from "@/hooks/useEmergencyAlerts";
-
 const Dashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, loading, signOut } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
-
-  // Initialize emergency alerts hook
-  useEmergencyAlerts(user?.id);
   const [profile, setProfile] = useState<{
     id: string;
     full_name: string;
