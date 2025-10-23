@@ -112,7 +112,7 @@ const Dashboard = () => {
               user_name: userProfile?.full_name || "Usuário"
             };
 
-            setAlerts((prev) => [alertWithName, ...prev].slice(0, 10));
+            setAlerts((prev) => [alertWithName as typeof prev[0], ...prev].slice(0, 10));
             toast({
               title: "⚠️ Novo Alerta de Emergência!",
               description: `${userProfile?.full_name || "Usuário"} ativou um alerta de ${payload.new.alert_type}`,
