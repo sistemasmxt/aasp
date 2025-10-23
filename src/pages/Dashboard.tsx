@@ -107,12 +107,21 @@ const Dashboard = () => {
               .eq("id", payload.new.user_id)
               .single();
 
-            const alertWithName = {
-              ...payload.new,
-              user_name: userProfile?.full_name || "Usuário"
-            };
-
-            setAlerts((prev) => [alertWithName as typeof prev[0], ...prev].slice(0, 10));
+            setAlerts((prev) => {
+              const newAlert: typeof prev[0] = {
+                id: payload.new.id,
+                user_id: payload.new.user_id,
+                alert_type: payload.new.alert_type,
+                latitude: payload.new.latitude,
+                longitude: payload.new.longitude,
+                message: payload.new.message,
+                is_active: payload.new.is_active,
+                created_at: payload.new.created_at,
+                resolved_at: payload.new.resolved_at,
+                user_name: userProfile?.full_name || "Usuário"
+              };
+              return [newAlert, ...prev].slice(0, 10);
+            });
             toast({
               title: "⚠️ Novo Alerta de Emergência!",
               description: `${userProfile?.full_name || "Usuário"} ativou um alerta de ${payload.new.alert_type}`,
