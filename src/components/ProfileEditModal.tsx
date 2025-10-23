@@ -13,7 +13,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { mapErrorToUserMessage } from "@/lib/errorHandler";
 import { Settings, Upload, Save, Key, MapPin } from "lucide-react";
-import imageCompression from 'browser-image-compression';
 import {
   fetchAddressByCep,
   BRAZILIAN_STATES,
@@ -92,48 +91,205 @@ export const ProfileEditModal = ({ profile, onProfileUpdate }: ProfileEditModalP
   }, [profile]);
 
   const compressImage = async (file: File): Promise<File> => {
-    // Ultra aggressive compression settings
-    const options = {
-      maxSizeMB: 0.05, // 50KB max - very small
-      maxWidthOrHeight: 200, // Very small resolution
-      useWebWorker: true,
-      fileType: 'image/jpeg',
-      initialQuality: 0.3, // Very low quality
-    };
+    return new Promise((resolve, reject) => {
+      console.log('🖼️ Starting image compression for file:', {
+        name: file.name,
+        size: (file.size / 1024).toFixed(0) + 'KB',
+        type: file.type
+      });
 
-    try {
-      const compressedFile = await imageCompression(file, options);
-      return compressedFile;
-    } catch (error) {
-      console.error('Error compressing image:', error);
-      // Try with extreme compression if first attempt fails
-      try {
-        const fallbackOptions = {
-          maxSizeMB: 0.02, // 20KB fallback
-          maxWidthOrHeight: 150,
-          useWebWorker: true,
-          fileType: 'image/jpeg',
-          initialQuality: 0.2,
-        };
-        const fallbackFile = await imageCompression(file, fallbackOptions);
-        return fallbackFile;
-      } catch (fallbackError) {
-        console.error('Fallback compression also failed:', fallbackError);
-        // Return original file if all compression fails
-        return file;
+      // If file is already small enough, return as-is
+      if (file.size <= 100 * 1024) { // 100KB
+        console.log('✅ File already small enough, no compression needed');
+        resolve(file);
+        return;
       }
-    }
+
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+
+      img.onload = () => {
+        try {
+          // Calculate new dimensions (max 300px)
+          let { width, height } = img;
+          const maxSize = 300;
+
+          if (width > height) {
+            if (width > maxSize) {
+              height = (height * maxSize) / width;
+              width = maxSize;
+            }
+          } else {
+            if (height > maxSize) {
+              width = (width * maxSize) / height;
+              height = maxSize;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          // Draw and compress
+          ctx?.drawImage(img, 0, 0, width, height);
+
+          canvas.toBlob((blob) => {
+            if (!blob) {
+              reject(new Error('Falha ao comprimir imagem'));
+              return;
+            }
+
+            // If compressed size is still too large, try lower quality
+            if (blob.size > 100 * 1024) {
+              console.log('🔄 First compression too large, trying lower quality...');
+              canvas.toBlob((blob2) => {
+                if (!blob2) {
+                  reject(new Error('Falha na compressão de baixa qualidade'));
+                  return;
+                }
+
+                const compressedFile = new File([blob2], file.name, {
+                  type: 'image/jpeg',
+                  lastModified: Date.now()
+                });
+
+                console.log('✅ Low quality compression successful:', {
+                  originalSize: (file.size / 1024).toFixed(0) + 'KB',
+                  compressedSize: (compressedFile.size / 1024).toFixed(0) + 'KB',
+                  reduction: (((file.size - compressedFile.size) / file.size) * 100).toFixed(0) + '%'
+                });
+
+                resolve(compressedFile);
+              }, 'image/jpeg', 0.5); // 50% quality
+            } else {
+              const compressedFile = new File([blob], file.name, {
+                type: 'image/jpeg',
+                lastModified: Date.now()
+              });
+
+              console.log('✅ Compression successful:', {
+                originalSize: (file.size / 1024).toFixed(0) + 'KB',
+                compressedSize: (compressedFile.size / 1024).toFixed(0) + 'KB',
+                reduction: (((file.size - compressedFile.size) / file.size) * 100).toFixed(0) + '%'
+              });
+
+              resolve(compressedFile);
+            }
+          }, 'image/jpeg', 0.8); // 80% quality first attempt
+
+        } catch (error) {
+          console.error('❌ Canvas compression failed:', error);
+          reject(new Error('Falha na compressão da imagem'));
+        }
+      };
+
+      img.onerror = () => {
+        reject(new Error('Imagem corrompida ou formato não suportado'));
+      };
+
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
+  const validateImageFile = async (file: File): Promise<{ isValid: boolean; error?: string }> => {
+    return new Promise((resolve) => {
+      // Check file extension as fallback for MIME type validation
+      const fileName = file.name.toLowerCase();
+      const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+      const hasValidExtension = allowedExtensions.some(ext => fileName.endsWith(ext));
+
+      // Check MIME type
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+      const hasValidType = allowedTypes.includes(file.type);
+
+      // Accept if either MIME type or extension is valid
+      if (!hasValidType && !hasValidExtension) {
+        resolve({
+          isValid: false,
+          error: "Formato não suportado. Selecione apenas arquivos JPG, PNG, GIF ou WebP."
+        });
+        return;
+      }
+
+      // Check file size (max 10MB)
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (file.size > maxSize) {
+        resolve({
+          isValid: false,
+          error: "Arquivo muito grande. O arquivo deve ter no máximo 10MB."
+        });
+        return;
+      }
+
+      // Check minimum size (avoid corrupted files)
+      const minSize = 1024; // 1KB
+      if (file.size < minSize) {
+        resolve({
+          isValid: false,
+          error: "Arquivo muito pequeno. A imagem parece estar corrompida."
+        });
+        return;
+      }
+
+      // Verify it's actually a valid image by trying to load it
+      const img = new Image();
+      img.onload = () => {
+        // Additional checks
+        if (img.width === 0 || img.height === 0) {
+          resolve({
+            isValid: false,
+            error: "Imagem inválida. As dimensões da imagem são zero."
+          });
+          return;
+        }
+
+        if (img.width > 10000 || img.height > 10000) {
+          resolve({
+            isValid: false,
+            error: "Imagem muito grande. Dimensões máximas permitidas: 10000x10000 pixels."
+          });
+          return;
+        }
+
+        resolve({ isValid: true });
+      };
+
+      img.onerror = () => {
+        resolve({
+          isValid: false,
+          error: "Arquivo não é uma imagem válida ou está corrompido."
+        });
+      };
+
+      img.src = URL.createObjectURL(file);
+
+      // Timeout after 10 seconds
+      setTimeout(() => {
+        resolve({
+          isValid: false,
+          error: "Timeout ao validar imagem. Tente novamente."
+        });
+      }, 10000);
+    });
   };
 
   const handleAvatarChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Validate file type first
-    if (!file.type.startsWith('image/')) {
+    console.log('📁 File selected:', {
+      name: file.name,
+      size: (file.size / 1024).toFixed(0) + 'KB',
+      type: file.type,
+      extension: file.name.split('.').pop()?.toLowerCase()
+    });
+
+    // Validate file
+    const validation = await validateImageFile(file);
+    if (!validation.isValid) {
       toast({
-        title: "Formato não suportado",
-        description: "Selecione apenas arquivos de imagem (JPG, PNG, GIF, etc.)",
+        title: "Erro na validação",
+        description: validation.error,
         variant: "destructive",
       });
       event.target.value = '';
@@ -150,17 +306,39 @@ export const ProfileEditModal = ({ profile, onProfileUpdate }: ProfileEditModalP
       // Compress and convert image
       const processedFile = await compressImage(file);
 
-      // Final validation - ensure it's under 100KB
-      if (processedFile.size > 100 * 1024) {
+      console.log('🔍 Post-compression validation:', {
+        originalSize: (file.size / 1024).toFixed(0) + 'KB',
+        processedSize: (processedFile.size / 1024).toFixed(0) + 'KB',
+        maxAllowed: '100KB'
+      });
+
+      // Final validation - ensure it's under 100KB after compression
+      const maxProcessedSize = 100 * 1024; // 100KB
+      if (processedFile.size > maxProcessedSize) {
+        console.error('❌ File too large after compression:', processedFile.size);
         toast({
-          title: "Imagem muito grande",
-          description: "A imagem deve ter no máximo 100KB. Tente uma imagem menor.",
+          title: "Imagem muito grande após otimização",
+          description: `Tamanho final: ${(processedFile.size / 1024).toFixed(0)}KB. Máximo permitido: 100KB. Tente uma imagem menor.`,
           variant: "destructive",
         });
         event.target.value = '';
         return;
       }
 
+      // Additional validation - ensure minimum size (too small files might be corrupted)
+      const minProcessedSize = 1024; // 1KB
+      if (processedFile.size < minProcessedSize) {
+        console.error('❌ File too small after compression:', processedFile.size);
+        toast({
+          title: "Imagem muito pequena após otimização",
+          description: "A imagem otimizada parece estar corrompida. Tente novamente com outra imagem.",
+          variant: "destructive",
+        });
+        event.target.value = '';
+        return;
+      }
+
+      console.log('✅ File validation passed, setting avatar file');
       setAvatarFile(processedFile);
 
       // Create preview
@@ -176,13 +354,48 @@ export const ProfileEditModal = ({ profile, onProfileUpdate }: ProfileEditModalP
       });
 
     } catch (error) {
-      console.error('Error processing image:', error);
+      console.error('❌ Error processing image:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
       toast({
         title: "Erro ao processar imagem",
-        description: "Não foi possível otimizar a imagem. Tente novamente.",
+        description: errorMessage.includes('comprimir') ? errorMessage : "Não foi possível otimizar a imagem. Verifique se o arquivo não está corrompido e tente novamente.",
         variant: "destructive",
       });
       event.target.value = '';
+    }
+  };
+
+  const createStorageFolders = async (): Promise<void> => {
+    try {
+      console.log('📁 Creating storage folders...');
+
+      // Create a temporary empty file to establish folder structure
+      const tempFileName = `.folder_placeholder_${Date.now()}.txt`;
+      const tempFilePath = `uploads/avatar/${tempFileName}`;
+
+      // Create empty blob for folder creation
+      const emptyBlob = new Blob([''], { type: 'text/plain' });
+      const tempFile = new File([emptyBlob], tempFileName, { type: 'text/plain' });
+
+      const { error } = await supabase.storage
+        .from('avatars')
+        .upload(tempFilePath, tempFile, {
+          cacheControl: '3600',
+          upsert: true,
+          contentType: 'text/plain'
+        });
+
+      if (error) {
+        console.warn('Folder creation warning (might already exist):', error.message);
+      } else {
+        // Clean up the temporary file
+        await supabase.storage
+          .from('avatars')
+          .remove([tempFilePath]);
+        console.log('✅ Storage folders created successfully');
+      }
+    } catch (error) {
+      console.warn('⚠️ Folder creation failed (continuing anyway):', error);
     }
   };
 
@@ -190,9 +403,12 @@ export const ProfileEditModal = ({ profile, onProfileUpdate }: ProfileEditModalP
     if (!avatarFile || !user) return profile?.avatar_url || null;
 
     try {
+      // Ensure storage folders exist
+      await createStorageFolders();
+
       // Use .jpg extension for all compressed images
       const fileName = `${user.id}_${Date.now()}.jpg`;
-      const filePath = `avatars/${fileName}`;
+      const filePath = `uploads/avatar/${fileName}`;
 
       // Delete old avatar if exists
       if (profile?.avatar_url) {
@@ -206,7 +422,7 @@ export const ProfileEditModal = ({ profile, onProfileUpdate }: ProfileEditModalP
 
       console.log('Uploading file:', {
         fileName,
-        filePath,
+        filePath: `uploads/avatar/${fileName}`,
         size: avatarFile.size,
         type: avatarFile.type
       });
@@ -396,7 +612,7 @@ export const ProfileEditModal = ({ profile, onProfileUpdate }: ProfileEditModalP
                 <div className="flex items-center gap-2">
                   <Input
                     type="file"
-                    accept="image/*"
+                    accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
                     onChange={handleAvatarChange}
                     className="hidden"
                     id="avatar-upload"
@@ -408,6 +624,9 @@ export const ProfileEditModal = ({ profile, onProfileUpdate }: ProfileEditModalP
                     <Upload className="h-4 w-4" />
                     Alterar Foto
                   </Label>
+                  <p className="text-xs text-muted-foreground">
+                    JPG, PNG, GIF ou WebP (máx. 10MB)
+                  </p>
                 </div>
               </div>
             </Card>
