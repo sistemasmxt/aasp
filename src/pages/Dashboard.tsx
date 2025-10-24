@@ -13,6 +13,9 @@ import {
   Settings,
   Home,
   DollarSign,
+  CheckCircle,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -55,6 +58,8 @@ const Dashboard = () => {
     resolved_at: string | null;
     user_name?: string;
   }[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const alertsPerPage = 5;
 
   // Protection is now handled by ProtectedRoute wrapper
   // This component only renders for authenticated users
@@ -69,13 +74,18 @@ const Dashboard = () => {
         .single()
         .then(({ data }) => setProfile(data));
 
-      // Load recent alerts with user names
+      // Load today's alerts with user names (alerts from today, regardless of time)
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
       supabase
         .from("emergency_alerts")
         .select("*")
-        .eq("is_active", true)
+        .gte("created_at", today.toISOString())
+        .lt("created_at", tomorrow.toISOString())
         .order("created_at", { ascending: false })
-        .limit(10)
         .then(async ({ data: alertsData }) => {
           if (alertsData && alertsData.length > 0) {
             const userIds = alertsData.map(alert => alert.user_id);
@@ -111,33 +121,40 @@ const Dashboard = () => {
             table: "emergency_alerts",
           },
           async (payload) => {
-            // Fetch user name for the new alert
-            const { data: userProfile } = await supabase
-              .from("profiles")
-              .select("full_name")
-              .eq("id", payload.new.user_id)
-              .single();
+            // Check if the new alert is from today
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const alertDate = new Date(payload.new.created_at);
 
-            setAlerts((prev) => {
-              const newAlert: typeof prev[0] = {
-                id: payload.new.id,
-                user_id: payload.new.user_id,
-                alert_type: payload.new.alert_type,
-                latitude: payload.new.latitude,
-                longitude: payload.new.longitude,
-                message: payload.new.message,
-                is_active: payload.new.is_active,
-                created_at: payload.new.created_at,
-                resolved_at: payload.new.resolved_at,
-                user_name: userProfile?.full_name || "Usuário"
-              };
-              return [newAlert, ...prev].slice(0, 10);
-            });
-            toast({
-              title: "⚠️ Novo Alerta de Emergência!",
-              description: `${userProfile?.full_name || "Usuário"} ativou um alerta de ${payload.new.alert_type}`,
-              variant: "destructive",
-            });
+            if (alertDate >= today) {
+              // Fetch user name for the new alert
+              const { data: userProfile } = await supabase
+                .from("profiles")
+                .select("full_name")
+                .eq("id", payload.new.user_id)
+                .single();
+
+              setAlerts((prev) => {
+                const newAlert: typeof prev[0] = {
+                  id: payload.new.id,
+                  user_id: payload.new.user_id,
+                  alert_type: payload.new.alert_type,
+                  latitude: payload.new.latitude,
+                  longitude: payload.new.longitude,
+                  message: payload.new.message,
+                  is_active: payload.new.is_active,
+                  created_at: payload.new.created_at,
+                  resolved_at: payload.new.resolved_at,
+                  user_name: userProfile?.full_name || "Usuário"
+                };
+                return [newAlert, ...prev];
+              });
+              toast({
+                title: "⚠️ Novo Alerta de Emergência!",
+                description: `${userProfile?.full_name || "Usuário"} ativou um alerta de ${payload.new.alert_type}`,
+                variant: "destructive",
+              });
+            }
           }
         )
         .subscribe();
@@ -231,6 +248,49 @@ const Dashboard = () => {
         });
       }
     );
+  };
+
+  const handleResolveAlert = async (alertId: string) => {
+    try {
+      const { error } = await supabase
+        .from("emergency_alerts")
+        .update({
+          is_active: false,
+          resolved_at: new Date().toISOString(),
+        })
+        .eq("id", alertId);
+
+      if (error) throw error;
+
+      setAlerts((prev) =>
+        prev.map((alert) =>
+          alert.id === alertId
+            ? { ...alert, is_active: false, resolved_at: new Date().toISOString() }
+            : alert
+        )
+      );
+
+      toast({
+        title: "✅ Alerta Resolvido",
+        description: "O alerta foi marcado como atendido",
+      });
+    } catch (error: unknown) {
+      toast({
+        title: "Erro ao resolver alerta",
+        description: mapErrorToUserMessage(error),
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Pagination logic
+  const totalPages = Math.ceil(alerts.length / alertsPerPage);
+  const startIndex = (currentPage - 1) * alertsPerPage;
+  const endIndex = startIndex + alertsPerPage;
+  const currentAlerts = alerts.slice(startIndex, endIndex);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
   };
 
   // Loading state is now handled by ProtectedRoute wrapper
@@ -345,19 +405,25 @@ const Dashboard = () => {
                 Alertas Recentes
               </h2>
               <div className="space-y-4">
-                {alerts.length === 0 ? (
+                {currentAlerts.length === 0 ? (
                   <p className="text-center text-muted-foreground py-4">
                     Nenhum alerta ativo no momento
                   </p>
                 ) : (
-                  alerts.map((alert) => (
+                  currentAlerts.map((alert) => (
                     <div
                       key={alert.id}
-                      className="flex items-start gap-3 p-4 rounded-lg bg-muted/50"
+                      className={`flex items-start gap-3 p-4 rounded-lg ${
+                        alert.is_active ? "bg-muted/50" : "bg-green-50 border border-green-200"
+                      }`}
                     >
-                      <AlertCircle className="h-5 w-5 mt-0.5 text-emergency" />
+                      {alert.is_active ? (
+                        <AlertCircle className="h-5 w-5 mt-0.5 text-emergency" />
+                      ) : (
+                        <CheckCircle className="h-5 w-5 mt-0.5 text-green-600" />
+                      )}
                       <div className="flex-1">
-                        <p className="text-sm text-foreground">
+                        <p className={`text-sm ${alert.is_active ? "text-foreground" : "text-green-800"}`}>
                           <strong>{alert.user_name}</strong> - {alert.alert_type === "robbery"
                             ? "Assalto"
                             : alert.alert_type === "assault"
@@ -367,12 +433,60 @@ const Dashboard = () => {
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
                           📍 Lat: {alert.latitude.toFixed(6)}, Lon: {alert.longitude.toFixed(6)} • {new Date(alert.created_at).toLocaleString("pt-BR")}
+                          {alert.resolved_at && (
+                            <span className="text-green-600">
+                              {" "}• Resolvido em {new Date(alert.resolved_at).toLocaleString("pt-BR")}
+                            </span>
+                          )}
                         </p>
                       </div>
+                      {alert.is_active && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleResolveAlert(alert.id)}
+                          className="ml-2"
+                        >
+                          <CheckCircle className="h-4 w-4 mr-1" />
+                          Resolver
+                        </Button>
+                      )}
                     </div>
                   ))
                 )}
               </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-6">
+                  <p className="text-sm text-muted-foreground">
+                    Mostrando {startIndex + 1}-{Math.min(endIndex, alerts.length)} de {alerts.length} alertas
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Anterior
+                    </Button>
+                    <span className="text-sm text-muted-foreground">
+                      Página {currentPage} de {totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                    >
+                      Próxima
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </Card>
 
             <Card className="p-6">

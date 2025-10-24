@@ -90,17 +90,18 @@ export const ProfileEditModal = ({ profile, onProfileUpdate }: ProfileEditModalP
     }
   }, [profile]);
 
-  const compressImage = async (file: File): Promise<File> => {
+  const resizeImage = async (file: File): Promise<File> => {
     return new Promise((resolve, reject) => {
-      console.log('🖼️ Starting image compression for file:', {
+      console.log('🖼️ Starting image resize for file:', {
         name: file.name,
         size: (file.size / 1024).toFixed(0) + 'KB',
         type: file.type
       });
 
       // If file is already small enough, return as-is
-      if (file.size <= 100 * 1024) { // 100KB
-        console.log('✅ File already small enough, no compression needed');
+      const maxAllowedSize = 500 * 1024; // 500KB (limite mais alto para evitar compressão desnecessária)
+      if (file.size <= maxAllowedSize) {
+        console.log('✅ File already small enough, no resize needed');
         resolve(file);
         return;
       }
@@ -111,75 +112,51 @@ export const ProfileEditModal = ({ profile, onProfileUpdate }: ProfileEditModalP
 
       img.onload = () => {
         try {
-          // Calculate new dimensions (max 300px)
+          // Calculate new dimensions (max 800px para manter qualidade)
           let { width, height } = img;
-          const maxSize = 300;
+          const maxDimension = 800;
 
           if (width > height) {
-            if (width > maxSize) {
-              height = (height * maxSize) / width;
-              width = maxSize;
+            if (width > maxDimension) {
+              height = (height * maxDimension) / width;
+              width = maxDimension;
             }
           } else {
-            if (height > maxSize) {
-              width = (width * maxSize) / height;
-              height = maxSize;
+            if (height > maxDimension) {
+              width = (width * maxDimension) / height;
+              height = maxDimension;
             }
           }
 
           canvas.width = width;
           canvas.height = height;
 
-          // Draw and compress
+          // Draw image
           ctx?.drawImage(img, 0, 0, width, height);
 
           canvas.toBlob((blob) => {
             if (!blob) {
-              reject(new Error('Falha ao comprimir imagem'));
+              reject(new Error('Falha ao redimensionar imagem'));
               return;
             }
 
-            // If compressed size is still too large, try lower quality
-            if (blob.size > 100 * 1024) {
-              console.log('🔄 First compression too large, trying lower quality...');
-              canvas.toBlob((blob2) => {
-                if (!blob2) {
-                  reject(new Error('Falha na compressão de baixa qualidade'));
-                  return;
-                }
+            const resizedFile = new File([blob], file.name.replace(/\.[^/.]+$/, '.jpg'), {
+              type: 'image/jpeg',
+              lastModified: Date.now()
+            });
 
-                const compressedFile = new File([blob2], file.name, {
-                  type: 'image/jpeg',
-                  lastModified: Date.now()
-                });
+            console.log('✅ Image resized successfully:', {
+              originalSize: (file.size / 1024).toFixed(0) + 'KB',
+              resizedSize: (resizedFile.size / 1024).toFixed(0) + 'KB',
+              dimensions: `${width}x${height}`
+            });
 
-                console.log('✅ Low quality compression successful:', {
-                  originalSize: (file.size / 1024).toFixed(0) + 'KB',
-                  compressedSize: (compressedFile.size / 1024).toFixed(0) + 'KB',
-                  reduction: (((file.size - compressedFile.size) / file.size) * 100).toFixed(0) + '%'
-                });
-
-                resolve(compressedFile);
-              }, 'image/jpeg', 0.5); // 50% quality
-            } else {
-              const compressedFile = new File([blob], file.name, {
-                type: 'image/jpeg',
-                lastModified: Date.now()
-              });
-
-              console.log('✅ Compression successful:', {
-                originalSize: (file.size / 1024).toFixed(0) + 'KB',
-                compressedSize: (compressedFile.size / 1024).toFixed(0) + 'KB',
-                reduction: (((file.size - compressedFile.size) / file.size) * 100).toFixed(0) + '%'
-              });
-
-              resolve(compressedFile);
-            }
-          }, 'image/jpeg', 0.8); // 80% quality first attempt
+            resolve(resizedFile);
+          }, 'image/jpeg', 0.85); // Boa qualidade
 
         } catch (error) {
-          console.error('❌ Canvas compression failed:', error);
-          reject(new Error('Falha na compressão da imagem'));
+          console.error('❌ Canvas resize failed:', error);
+          reject(new Error('Falha ao redimensionar a imagem'));
         }
       };
 
@@ -303,22 +280,22 @@ export const ProfileEditModal = ({ profile, onProfileUpdate }: ProfileEditModalP
         description: "Otimizando imagem para upload",
       });
 
-      // Compress and convert image
-      const processedFile = await compressImage(file);
+      // Resize image
+      const processedFile = await resizeImage(file);
 
-      console.log('🔍 Post-compression validation:', {
+      console.log('🔍 Post-resize validation:', {
         originalSize: (file.size / 1024).toFixed(0) + 'KB',
         processedSize: (processedFile.size / 1024).toFixed(0) + 'KB',
-        maxAllowed: '100KB'
+        maxAllowed: '500KB'
       });
 
-      // Final validation - ensure it's under 100KB after compression
-      const maxProcessedSize = 100 * 1024; // 100KB
+      // Final validation - ensure it's under 500KB after resize (limite mais alto)
+      const maxProcessedSize = 500 * 1024; // 500KB
       if (processedFile.size > maxProcessedSize) {
-        console.error('❌ File too large after compression:', processedFile.size);
+        console.error('❌ File too large after resize:', processedFile.size);
         toast({
-          title: "Imagem muito grande após otimização",
-          description: `Tamanho final: ${(processedFile.size / 1024).toFixed(0)}KB. Máximo permitido: 100KB. Tente uma imagem menor.`,
+          title: "Imagem muito grande após redimensionamento",
+          description: `Tamanho final: ${(processedFile.size / 1024).toFixed(0)}KB. Máximo permitido: 500KB. Tente uma imagem menor ou com menor resolução.`,
           variant: "destructive",
         });
         event.target.value = '';
@@ -365,13 +342,41 @@ export const ProfileEditModal = ({ profile, onProfileUpdate }: ProfileEditModalP
     }
   };
 
+  const checkAvatarsBucket = async (): Promise<void> => {
+    try {
+      console.log('📦 Checking if avatars bucket exists...');
+
+      // Try to list buckets to check if avatars exists
+      const { data: buckets, error: listError } = await supabase.storage.listBuckets();
+
+      if (listError) {
+        console.error('❌ Error listing buckets:', listError);
+        throw new Error('Não foi possível verificar os buckets de storage. Verifique suas permissões.');
+      }
+
+      const avatarsBucket = buckets?.find(bucket => bucket.name === 'avatars');
+
+      if (!avatarsBucket) {
+        throw new Error('Bucket "avatars" não encontrado. Crie o bucket no painel do Supabase Storage com o nome "avatars" e torne-o público.');
+      }
+
+      console.log('✅ Avatars bucket exists');
+    } catch (error) {
+      console.error('❌ Bucket check error:', error);
+      throw error;
+    }
+  };
+
   const createStorageFolders = async (): Promise<void> => {
     try {
       console.log('📁 Creating storage folders...');
 
+      // First ensure the bucket exists
+      await checkAvatarsBucket();
+
       // Create a temporary empty file to establish folder structure
       const tempFileName = `.folder_placeholder_${Date.now()}.txt`;
-      const tempFilePath = `uploads/avatar/${tempFileName}`;
+      const tempFilePath = `${tempFileName}`;
 
       // Create empty blob for folder creation
       const emptyBlob = new Blob([''], { type: 'text/plain' });
@@ -387,13 +392,6 @@ export const ProfileEditModal = ({ profile, onProfileUpdate }: ProfileEditModalP
 
       if (error) {
         console.warn('Folder creation warning (might already exist):', error.message);
-        // If bucket doesn't exist, try to create it
-        if (error.message.includes('Bucket not found')) {
-          console.log('🔄 Bucket not found, attempting to create avatars bucket...');
-          // Note: This would require admin privileges, so we'll skip folder creation for now
-          console.log('⚠️ Skipping folder creation - bucket may not exist');
-          return;
-        }
       } else {
         // Clean up the temporary file
         await supabase.storage
@@ -410,53 +408,46 @@ export const ProfileEditModal = ({ profile, onProfileUpdate }: ProfileEditModalP
     if (!avatarFile || !user) return profile?.avatar_url || null;
 
     try {
-      // Ensure storage folders exist
-      await createStorageFolders();
-
-      // Use .jpg extension for all compressed images
-      const fileName = `${user.id}_${Date.now()}.jpg`;
-      const filePath = `uploads/avatar/${fileName}`;
-
-      // Delete old avatar if exists
-      if (profile?.avatar_url) {
-        const oldFileName = profile.avatar_url.split('/').pop();
-        if (oldFileName) {
-          await supabase.storage
-            .from('avatars')
-            .remove([`avatars/${oldFileName}`]);
-        }
-      }
-
-      console.log('Uploading file:', {
-        fileName,
-        filePath: `uploads/avatar/${fileName}`,
+      console.log('Uploading file to local server:', {
         size: avatarFile.size,
-        type: avatarFile.type
+        type: avatarFile.type,
+        name: avatarFile.name
       });
 
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, avatarFile, {
-          cacheControl: '3600',
-          upsert: false,
-          contentType: 'image/jpeg'
-        });
+      // Create FormData for upload
+      const formData = new FormData();
+      formData.append('avatar', avatarFile, avatarFile.name); // Ensure filename is included
+      formData.append('userId', user.id);
 
-      if (uploadError) {
-        console.error('Upload error details:', uploadError);
-        throw new Error(`Falha no upload: ${uploadError.message}`);
+      console.log('FormData contents:', {
+        hasAvatar: formData.has('avatar'),
+        hasUserId: formData.has('userId'),
+        userId: user.id
+      });
+
+      // Upload to local PHP script
+      const response = await fetch('http://localhost:8081/upload.php', {
+        method: 'POST',
+        body: formData,
+      });
+
+      console.log('Response status:', response.status);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Response error:', errorText);
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
       }
 
-      const { data } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath);
+      const result = await response.json();
+      console.log('Parsed response:', result);
 
-      if (!data.publicUrl) {
-        throw new Error('Falha ao obter URL pública da imagem');
+      if (!result.success) {
+        throw new Error(result.error || 'Falha no upload');
       }
 
-      console.log('Upload successful, URL:', data.publicUrl);
-      return data.publicUrl;
+      console.log('Upload successful, path:', result.path);
+      return result.path;
     } catch (error) {
       console.error('Avatar upload error:', error);
       throw error;
