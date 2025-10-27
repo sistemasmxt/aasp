@@ -15,7 +15,7 @@ export default defineConfig(({ mode }) => ({
     mode === "development" && componentTagger(),
     // VitePWA desabilitado para evitar erro de build
     // mode === "production" && VitePWA({
-      registerType: "autoUpdate",
+    //   registerType: "autoUpdate",
       includeAssets: ["favicon.ico", "apple-touch-icon.png", "masked-icon.svg"],
       manifest: {
         name: "AASP - Segurança Eletrônica",
