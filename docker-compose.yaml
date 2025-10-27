@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   aasp:
     container_name: aasp_app
