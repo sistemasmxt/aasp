@@ -110,28 +110,34 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
   };
 
   const handleSend = async () => {
-    if (!newMessage.trim() || sending) return;
+    const messageContent = newMessage.trim();
+    if (!messageContent || sending || !currentUserId || !recipientId) return;
 
     setSending(true);
     try {
-      console.log("Sending message:", {
-        sender_id: currentUserId,
-        receiver_id: recipientId,
-        content: newMessage.trim(),
-      });
-      
-      const { data, error } = await supabase.from("messages").insert({
-        sender_id: currentUserId,
-        receiver_id: recipientId,
-        content: newMessage.trim(),
-        message_type: "text",
-        is_group: false,
-      }).select();
+      // Primeiro verifica se há permissão para enviar mensagens
+      const { data: permission, error: permError } = await supabase
+        .rpc('can_message_user', { target_user_id: recipientId });
 
-      console.log("Message sent:", data, "Error:", error);
+      if (permError || !permission) {
+        throw new Error('Você não tem permissão para enviar mensagens para este usuário.');
+      }
+
+      // Tenta enviar a mensagem
+      const { data, error } = await supabase
+        .from("messages")
+        .insert({
+          sender_id: currentUserId,
+          receiver_id: recipientId,
+          content: messageContent,
+          message_type: "text",
+          is_group: false,
+        })
+        .select();
 
       if (error) throw error;
 
+      // Limpa o campo apenas se a mensagem for enviada com sucesso
       setNewMessage("");
     } catch (error: unknown) {
       console.error("Error sending message:", error);
@@ -226,8 +232,18 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
             onClick={handleSend}
             disabled={!newMessage.trim() || sending}
             size="icon"
+            variant="default"
+            className="relative"
           >
-            <Send className="h-4 w-4" />
+            <Send className={cn(
+              "h-4 w-4 transition-transform",
+              sending && "opacity-0"
+            )} />
+            {sending && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
+              </div>
+            )}
           </Button>
         </div>
       </div>

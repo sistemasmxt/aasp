@@ -556,9 +556,6 @@ const Dashboard = () => {
           </TabsContent>
 
           <TabsContent value="chat" className="space-y-4">
-            <div className="bg-accent/10 p-4 rounded-lg mb-4">
-              <p className="text-sm font-medium">Chat Interface Loading Test - Se você ver isso, o componente está carregando!</p>
-            </div>
             <ChatInterface />
           </TabsContent>
 
