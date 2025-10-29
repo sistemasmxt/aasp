@@ -16,6 +16,7 @@ import {
   CheckCircle,
   ChevronLeft,
   ChevronRight,
+  Clock,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -74,17 +75,21 @@ const Dashboard = () => {
         .single()
         .then(({ data }) => setProfile(data));
 
-      // Load today's alerts with user names (alerts from today, regardless of time)
+      // Load today's alerts with user names (considering local timezone)
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
 
+      // Convertendo para UTC para garantir que a query funcione corretamente
+      const todayUTC = new Date(today.getTime() - today.getTimezoneOffset() * 60000);
+      const tomorrowUTC = new Date(tomorrow.getTime() - tomorrow.getTimezoneOffset() * 60000);
+
       supabase
         .from("emergency_alerts")
         .select("*")
-        .gte("created_at", today.toISOString())
-        .lt("created_at", tomorrow.toISOString())
+        .gte("created_at", todayUTC.toISOString())
+        .lt("created_at", tomorrowUTC.toISOString())
         .order("created_at", { ascending: false })
         .then(async ({ data: alertsData }) => {
           if (alertsData && alertsData.length > 0) {
@@ -147,6 +152,8 @@ const Dashboard = () => {
                   resolved_at: payload.new.resolved_at,
                   user_name: userProfile?.full_name || "Usuário"
                 };
+                // Resetar a paginação quando um novo alerta chega
+                setCurrentPage(1);
                 return [newAlert, ...prev];
               });
               toast({
@@ -262,13 +269,21 @@ const Dashboard = () => {
 
       if (error) throw error;
 
-      setAlerts((prev) =>
-        prev.map((alert) =>
+      setAlerts((prev) => {
+        // Mantém a ordem original dos alertas
+        const updatedAlerts = prev.map((alert) =>
           alert.id === alertId
             ? { ...alert, is_active: false, resolved_at: new Date().toISOString() }
             : alert
-        )
-      );
+        );
+        // Re-ordena os alertas: primeiro os ativos, depois os resolvidos, mantendo a ordem cronológica em cada grupo
+        return updatedAlerts.sort((a, b) => {
+          if (a.is_active !== b.is_active) {
+            return a.is_active ? -1 : 1;
+          }
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        });
+      });
 
       toast({
         title: "✅ Alerta Resolvido",
@@ -413,8 +428,10 @@ const Dashboard = () => {
                   currentAlerts.map((alert) => (
                     <div
                       key={alert.id}
-                      className={`flex items-start gap-3 p-4 rounded-lg ${
-                        alert.is_active ? "bg-muted/50" : "bg-green-50 border border-green-200"
+                      className={`flex items-start gap-3 p-4 rounded-lg transition-all duration-300 ${
+                        alert.is_active 
+                          ? "bg-muted/50 hover:bg-muted/70" 
+                          : "bg-green-50/50 border border-green-200 hover:bg-green-50/70"
                       }`}
                     >
                       {alert.is_active ? (
@@ -431,12 +448,24 @@ const Dashboard = () => {
                             : "Emergência"}
                           {alert.message && ` - ${alert.message}`}
                         </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          📍 Lat: {alert.latitude.toFixed(6)}, Lon: {alert.longitude.toFixed(6)} • {new Date(alert.created_at).toLocaleString("pt-BR")}
+                        <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1 flex-wrap">
+                          <span className="inline-flex items-center">
+                            <MapPin className="h-3 w-3 mr-1" />
+                            Lat: {alert.latitude.toFixed(6)}, Lon: {alert.longitude.toFixed(6)}
+                          </span>
+                          <span>•</span>
+                          <span className="inline-flex items-center">
+                            <Clock className="h-3 w-3 mr-1" />
+                            {new Date(alert.created_at).toLocaleString("pt-BR")}
+                          </span>
                           {alert.resolved_at && (
-                            <span className="text-green-600">
-                              {" "}• Resolvido em {new Date(alert.resolved_at).toLocaleString("pt-BR")}
-                            </span>
+                            <>
+                              <span>•</span>
+                              <span className="inline-flex items-center text-green-600">
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                                Resolvido em {new Date(alert.resolved_at).toLocaleString("pt-BR")}
+                              </span>
+                            </>
                           )}
                         </p>
                       </div>

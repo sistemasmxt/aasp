@@ -425,8 +425,8 @@ export const ProfileEditModal = ({ profile, onProfileUpdate }: ProfileEditModalP
         userId: user.id
       });
 
-      // Upload to local PHP script
-      const response = await fetch('http://localhost:8081/upload.php', {
+      // Upload to production server
+      const response = await fetch('https://aasp.app.br/upload.php', {
         method: 'POST',
         body: formData,
       });
