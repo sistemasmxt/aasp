@@ -14,7 +14,7 @@ interface ChatMessagesProps {
   recipientId: string;
   recipientProfile: {
     id: string;
-    full_name: string;
+    full_name: string | null;
     avatar_url: string | null;
   } | null;
 }
@@ -115,15 +115,17 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
 
     setSending(true);
     try {
-      // Primeiro verifica se há permissão para enviar mensagens
-      const { data: permission, error: permError } = await supabase
-        .rpc('can_message_user', { target_user_id: recipientId });
-
-      if (permError || !permission) {
-        throw new Error('Você não tem permissão para enviar mensagens para este usuário.');
+      // Verifica se a mensagem já existe para evitar duplicação
+      const existingMessage = messages.find(m => 
+        m.sender_id === currentUserId && 
+        m.content === messageContent &&
+        Date.now() - new Date(m.created_at).getTime() < 5000 // últimos 5 segundos
+      );
+      
+      if (existingMessage) {
+        throw new Error('Aguarde alguns segundos antes de enviar a mesma mensagem.');
       }
 
-      // Tenta enviar a mensagem
       const { data, error } = await supabase
         .from("messages")
         .insert({
@@ -135,9 +137,15 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
         })
         .select();
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === '23503') {
+          throw new Error('Usuário não encontrado.');
+        } else if (error.code === '42501') {
+          throw new Error('Você não tem permissão para enviar mensagens.');
+        }
+        throw error;
+      }
 
-      // Limpa o campo apenas se a mensagem for enviada com sucesso
       setNewMessage("");
     } catch (error: unknown) {
       console.error("Error sending message:", error);
