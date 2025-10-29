@@ -37,7 +37,7 @@ export function mapErrorToUserMessage(error: unknown): string {
   // Database/RLS errors
   if (errorMessage.includes('row-level security') ||
       errorMessage.includes('permission denied')) {
-    return 'Você não tem permissão para esta ação';
+    return 'Você não tem permissão para enviar mensagens para este usuário';
   }
 
   if (errorMessage.includes('violates') ||

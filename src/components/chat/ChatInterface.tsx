@@ -5,15 +5,19 @@ import { Card } from "@/components/ui/card";
 import { UserList } from "./UserList";
 import { ChatMessages } from "./ChatMessages";
 import { MessageCircle } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { mapErrorToUserMessage } from "@/lib/errorHandler";
 
 interface UserProfile {
   id: string;
   full_name: string | null;
   avatar_url: string | null;
+  is_admin?: boolean;
 }
 
 export const ChatInterface = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [selectedUserProfile, setSelectedUserProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -22,29 +26,41 @@ export const ChatInterface = () => {
     const initializeChat = async () => {
       setIsLoading(true);
       try {
-        // Verificar permissões do chat
-        const { data: hasPermission, error: permError } = await supabase
-          .rpc('can_message_user', { target_user_id: selectedUserId || '00000000-0000-0000-0000-000000000000' });
-
-        if (permError) throw permError;
-
         if (selectedUserId) {
-          const { data } = await supabase
+          console.log('Inicializando chat com usuário:', selectedUserId);
+          
+          // Primeiro carrega o perfil do usuário
+          const { data: profileData, error: profileError } = await supabase
             .from("profiles")
             .select("id, full_name, avatar_url")
             .eq("id", selectedUserId)
             .single();
-          setSelectedUserProfile(data);
+
+          if (profileError) {
+            console.error("Erro ao carregar perfil:", profileError);
+            throw profileError;
+          }
+
+          console.log('Perfil carregado:', profileData);
+          setSelectedUserProfile(profileData);
+
+          // Por enquanto, permite mensagens para todos (verificação será feita no backend)
+          console.log('Chat inicializado sem verificação de permissão');
         }
       } catch (error) {
         console.error("Chat initialization error:", error);
+        toast({
+          title: "Erro ao inicializar chat",
+          description: mapErrorToUserMessage(error),
+          variant: "destructive",
+        });
       } finally {
         setIsLoading(false);
       }
     };
 
     initializeChat();
-  }, [selectedUserId]);
+  }, [selectedUserId, toast]);
 
   if (!user) return null;
 

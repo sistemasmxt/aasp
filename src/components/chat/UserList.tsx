@@ -20,16 +20,25 @@ export const UserList = ({ currentUserId, selectedUserId, onSelectUser }: UserLi
   useEffect(() => {
     const loadUsers = async () => {
       console.log("Loading users, current user:", currentUserId);
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, full_name, avatar_url")
-        .neq("id", currentUserId)
-        .order("full_name");
 
-      console.log("Users loaded:", data?.length || 0, "Error:", error);
-      
-      if (data) {
-        setUsers(data);
+      try {
+        // Por enquanto, não verifica permissões - mostra todos os usuários
+
+        // Carrega todos os usuários exceto o atual
+        const { data: allUsers, error } = await supabase
+          .from("profiles")
+          .select("id, full_name, avatar_url")
+          .neq("id", currentUserId)
+          .order("full_name");
+
+        console.log("Users loaded:", allUsers?.length || 0, "Error:", error);
+
+        if (allUsers && !error) {
+          // Por enquanto, mostra todos os usuários (filtragem será feita depois)
+          setUsers(allUsers);
+        }
+      } catch (error) {
+        console.error("Error loading users:", error);
       }
     };
 

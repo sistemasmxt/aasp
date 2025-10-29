@@ -1,4 +1,4 @@
--- Função para verificar se um usuário pode enviar mensagem para outro
+-- Atualiza a função can_message_user com regras mais específicas
 create or replace function public.can_message_user(target_user_id uuid)
 returns boolean
 security definer
@@ -11,7 +11,7 @@ begin
   -- Pega o ID do usuário autenticado
   sender_id := auth.uid();
   
-  -- Verifica se ambos os usuários existem e estão ativos
+  -- Verifica se ambos os usuários existem e têm permissão para trocar mensagens
   return exists (
     select 1 
     from profiles sender
@@ -36,11 +36,9 @@ begin
 end;
 $$;
 
--- Permissões para a função
-grant execute on function public.can_message_user(uuid) to authenticated;
-
--- RLS para tabela de mensagens
-alter table public.messages enable row level security;
+-- Recria as políticas de RLS para mensagens
+drop policy if exists "Users can insert their own messages" on public.messages;
+drop policy if exists "Users can view messages they sent or received" on public.messages;
 
 create policy "Users can insert their own messages"
   on public.messages for insert
