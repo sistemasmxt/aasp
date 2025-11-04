@@ -194,7 +194,8 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
         .select();
 
       if (error) {
-        console.error("Supabase Insert Error:", error); // Log the full error here
+        // Log the full error object here for detailed debugging
+        console.error("Supabase Insert Error (Full Object):", error); 
         if (error.code === '23503') {
           throw new Error('Usuário não encontrado.');
         } else if (error.code === '42501') {
