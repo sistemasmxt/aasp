@@ -223,30 +223,36 @@ export type Database = {
         Row: {
           content: string | null
           created_at: string
+          delivered_at: string | null
           group_id: string | null
           id: string
           is_group: boolean
           message_type: string
+          read_at: string | null
           receiver_id: string | null
           sender_id: string
         }
         Insert: {
           content?: string | null
           created_at?: string
+          delivered_at?: string | null
           group_id?: string | null
           id?: string
           is_group?: boolean
           message_type: string
+          read_at?: string | null
           receiver_id?: string | null
           sender_id: string
         }
         Update: {
           content?: string | null
           created_at?: string
+          delivered_at?: string | null
           group_id?: string | null
           id?: string
           is_group?: boolean
           message_type?: string
+          read_at?: string | null
           receiver_id?: string | null
           sender_id?: string
         }

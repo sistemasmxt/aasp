@@ -4,10 +4,23 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send } from "lucide-react";
+import { Send, Check, CheckCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { mapErrorToUserMessage } from "@/lib/errorHandler";
 import { cn } from "@/lib/utils";
+
+interface Message {
+  id: string;
+  sender_id: string;
+  receiver_id: string | null;
+  content: string | null;
+  message_type: string;
+  is_group: boolean;
+  created_at: string;
+  group_id: string | null;
+  delivered_at: string | null;
+  read_at: string | null;
+}
 
 interface ChatMessagesProps {
   currentUserId: string;
@@ -20,20 +33,32 @@ interface ChatMessagesProps {
 }
 
 export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: ChatMessagesProps) => {
-  const [messages, setMessages] = useState<{
-    id: string;
-    sender_id: string;
-    receiver_id: string | null;
-    content: string | null;
-    message_type: string;
-    is_group: boolean;
-    created_at: string;
-    group_id: string | null;
-  }[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+
+  // Mark messages as read when viewing
+  useEffect(() => {
+    const markAsRead = async () => {
+      const unreadMessages = messages.filter(
+        m => m.receiver_id === currentUserId && 
+        m.sender_id === recipientId && 
+        !m.read_at
+      );
+      
+      if (unreadMessages.length > 0) {
+        const messageIds = unreadMessages.map(m => m.id);
+        await supabase
+          .from("messages")
+          .update({ read_at: new Date().toISOString() })
+          .in("id", messageIds);
+      }
+    };
+
+    markAsRead();
+  }, [messages, currentUserId, recipientId]);
 
   useEffect(() => {
     console.log("Loading messages for:", currentUserId, "->", recipientId);
@@ -48,28 +73,41 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
           schema: "public",
           table: "messages",
         },
-        (payload) => {
+        async (payload) => {
           console.log("New message received:", payload);
-          const msg = payload.new as {
-            id: string;
-            sender_id: string;
-            receiver_id: string | null;
-            content: string | null;
-            message_type: string;
-            is_group: boolean;
-            created_at: string;
-            group_id: string | null;
-          };
+          const msg = payload.new as Message;
+          
           if (
             (msg.sender_id === recipientId && msg.receiver_id === currentUserId) ||
             (msg.sender_id === currentUserId && msg.receiver_id === recipientId)
           ) {
+            // Mark as delivered if I'm the recipient
+            if (msg.receiver_id === currentUserId && !msg.delivered_at) {
+              await supabase
+                .from("messages")
+                .update({ delivered_at: new Date().toISOString() })
+                .eq("id", msg.id);
+            }
+
             setMessages((prev) => {
-              // Avoid duplicates
               if (prev.some(m => m.id === msg.id)) return prev;
               return [...prev, msg];
             });
           }
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "messages",
+        },
+        (payload) => {
+          const updatedMsg = payload.new as Message;
+          setMessages((prev) => 
+            prev.map(m => m.id === updatedMsg.id ? updatedMsg : m)
+          );
         }
       )
       .subscribe((status) => {
@@ -221,19 +259,32 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
                   )}
                 >
                   <p className="text-sm break-words">{message.content}</p>
-                  <p
+                  <div
                     className={cn(
-                      "text-xs mt-1",
+                      "flex items-center gap-1 text-xs mt-1",
                       message.sender_id === currentUserId
                         ? "text-primary-foreground/70"
                         : "text-muted-foreground"
                     )}
                   >
-                    {new Date(message.created_at).toLocaleTimeString("pt-BR", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </p>
+                    <span>
+                      {new Date(message.created_at).toLocaleTimeString("pt-BR", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                    {message.sender_id === currentUserId && (
+                      <>
+                        {message.read_at ? (
+                          <CheckCheck className="h-3 w-3 text-blue-400" />
+                        ) : message.delivered_at ? (
+                          <CheckCheck className="h-3 w-3" />
+                        ) : (
+                          <Check className="h-3 w-3" />
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
             ))
