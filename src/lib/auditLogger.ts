@@ -19,13 +19,13 @@ export const logAudit = async ({ action, table_name, record_id, details }: LogAu
       return;
     }
 
-    const { error } = await supabase.from('admin_logs').insert({
+    const { error } = await supabase.from('admin_logs').insert([{
       user_id: user.id,
       action,
       table_name,
       record_id,
-      details,
-    });
+      details: details as any,
+    }]);
 
     if (error) {
       console.error('Error logging audit:', error);
