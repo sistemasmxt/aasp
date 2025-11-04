@@ -161,7 +161,7 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
     setSending(true);
     try {
       // Verificação de permissão será feita no backend via RLS
-      console.log('Enviando mensagem...');
+      console.log('Enviando mensagem sem verificação de permissão no frontend...');
 
       // Verifica se a mensagem já existe para evitar duplicação
       const existingMessage = messages.find(m => 
@@ -174,14 +174,7 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
         throw new Error('Aguarde alguns segundos antes de enviar a mesma mensagem.');
       }
 
-      console.log('Attempting to insert message:', {
-        sender_id: currentUserId,
-        receiver_id: recipientId,
-        content: messageContent,
-        message_type: "text",
-        is_group: false,
-      });
-
+      console.log('Enviando mensagem...');
       const { data, error } = await supabase
         .from("messages")
         .insert({
@@ -194,8 +187,6 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
         .select();
 
       if (error) {
-        // Log the full error object here for detailed debugging
-        console.error("Supabase Insert Error (Full Object):", error); 
         if (error.code === '23503') {
           throw new Error('Usuário não encontrado.');
         } else if (error.code === '42501') {
@@ -210,7 +201,7 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
       setNewMessage("");
       scrollToBottom();
     } catch (error: unknown) {
-      console.error("Error sending message (caught in frontend):", error); // Log the caught error
+      console.error("Error sending message:", error);
       toast({
         title: "Erro ao enviar mensagem",
         description: mapErrorToUserMessage(error),
