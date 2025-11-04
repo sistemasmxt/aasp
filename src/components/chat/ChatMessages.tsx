@@ -32,7 +32,7 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
   }[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const endRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -104,14 +104,21 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
   }, [currentUserId, recipientId]);
 
   const scrollToBottom = () => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    if (endRef.current) {
+      endRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }
   };
 
   const handleSend = async () => {
     const messageContent = newMessage.trim();
     if (!messageContent || sending || !currentUserId || !recipientId) return;
+
+    // Verifica sessão válida antes de enviar
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData.user) {
+      toast({ title: "Sessão expirada", description: "Faça login novamente para enviar mensagens.", variant: "destructive" });
+      return;
+    }
 
     setSending(true);
     try {
@@ -150,7 +157,11 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
         throw error;
       }
 
+      if (data && data.length > 0) {
+        setMessages((prev) => (prev.some(m => m.id === data[0].id) ? prev : [...prev, data[0]]));
+      }
       setNewMessage("");
+      scrollToBottom();
     } catch (error: unknown) {
       console.error("Error sending message:", error);
       toast({
@@ -186,7 +197,7 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
         </div>
       </div>
 
-      <ScrollArea ref={scrollRef} className="flex-1 p-4">
+      <ScrollArea className="flex-1 p-4">
         <div className="space-y-4">
           {messages.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">
@@ -227,7 +238,8 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
               </div>
             ))
           )}
-        </div>
+        <div ref={endRef} />
+      </div>
       </ScrollArea>
 
       <div className="p-4 border-t border-border bg-card">
