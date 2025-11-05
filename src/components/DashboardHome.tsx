@@ -13,7 +13,7 @@ import {
   ClipboardList,
   Ambulance,
   ArrowLeft,
-  Tool, // New icon for Utilities
+  Wrench, // Changed from Tool to Wrench
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -43,7 +43,7 @@ const DashboardHome = ({
     },
     {
       id: 'utilities', // New card for Utilities
-      icon: Tool,
+      icon: Wrench, // Changed from Tool to Wrench
       title: 'Utilidades',
       description: 'Contatos de emergência',
       color: 'text-teal-500',

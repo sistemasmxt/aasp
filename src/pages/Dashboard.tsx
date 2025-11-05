@@ -22,7 +22,7 @@ import {
   ClipboardList,
   ShieldAlert,
   Ambulance,
-  Tool, // Import the new icon
+  Wrench, // Changed from Tool to Wrench
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -401,7 +401,7 @@ const Dashboard = () => {
                       Câmeras
                     </Button>
                     <Button variant="ghost" className="justify-start" onClick={() => handleSelectView('utilities')}>
-                      <Tool className="h-5 w-5 mr-2" /> {/* New menu item */}
+                      <Wrench className="h-5 w-5 mr-2" /> {/* New menu item */}
                       Utilidades
                     </Button>
                     <Button variant="ghost" className="justify-start" onClick={() => handleSelectView('map')}>
