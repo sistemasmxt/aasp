@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
 interface UserListProps {
   currentUserId: string;
@@ -16,41 +17,86 @@ export const UserList = ({ currentUserId, selectedUserId, onSelectUser }: UserLi
     full_name: string;
     avatar_url: string | null;
   }[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
     const loadUsers = async () => {
+      setLoadingUsers(true);
       console.log("Loading users, current user:", currentUserId);
 
       try {
-        // Por enquanto, não verifica permissões - mostra todos os usuários
+        // 1. Obter a lista de IDs de usuários com os quais o usuário atual pode enviar mensagens
+        const { data: messageableIds, error: messageableIdsError } = await supabase.rpc('get_messageable_profile_ids');
 
-        // Carrega todos os usuários exceto o atual
-        const { data: allUsers, error } = await supabase
+        if (messageableIdsError) {
+          console.error("Erro ao buscar IDs de usuários que podem ser contatados:", messageableIdsError);
+          toast({
+            title: "Erro ao carregar usuários",
+            description: "Não foi possível determinar quem você pode contatar.",
+            variant: "destructive",
+          });
+          setLoadingUsers(false);
+          return;
+        }
+
+        const messageableIdSet = new Set(messageableIds);
+        console.log("IDs de usuários que podem ser contatados:", messageableIdSet);
+
+        // 2. Carregar todos os perfis (exceto o usuário atual)
+        const { data: allProfiles, error: profilesError } = await supabase
           .from("profiles")
           .select("id, full_name, avatar_url")
           .neq("id", currentUserId)
           .order("full_name");
 
-        console.log("Users loaded:", allUsers?.length || 0, "Error:", error);
-
-        if (allUsers && !error) {
-          // Por enquanto, mostra todos os usuários (filtragem será feita depois)
-          setUsers(allUsers);
+        if (profilesError) {
+          console.error("Erro ao carregar perfis:", profilesError);
+          toast({
+            title: "Erro ao carregar perfis",
+            description: "Não foi possível carregar a lista de usuários.",
+            variant: "destructive",
+          });
+          setLoadingUsers(false);
+          return;
         }
+
+        // 3. Filtrar perfis para incluir apenas usuários que podem ser contatados
+        const filteredUsers = (allProfiles || []).filter(profile => messageableIdSet.has(profile.id));
+        
+        console.log("Usuários filtrados para o chat:", filteredUsers.length);
+        setUsers(filteredUsers);
+
       } catch (error) {
-        console.error("Error loading users:", error);
+        console.error("Erro ao carregar usuários:", error);
+        toast({
+          title: "Erro ao carregar usuários",
+          description: "Ocorreu um erro ao carregar a lista de contatos.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoadingUsers(false);
       }
     };
 
     loadUsers();
-  }, [currentUserId]);
+  }, [currentUserId, toast]);
+
+  if (loadingUsers) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="animate-spin h-6 w-6 border-4 border-primary border-t-transparent rounded-full"></div>
+        <p className="ml-2 text-muted-foreground">Carregando contatos...</p>
+      </div>
+    );
+  }
 
   return (
     <ScrollArea className="flex-1">
       <div className="space-y-2">
         {users.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-4">
-            Nenhum usuário disponível
+            Nenhum usuário disponível para conversar.
           </p>
         ) : (
           users.map((profile) => (
