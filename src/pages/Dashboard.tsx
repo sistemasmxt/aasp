@@ -22,6 +22,7 @@ import {
   ClipboardList,
   ShieldAlert,
   Ambulance,
+  Tool, // Import the new icon
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -38,8 +39,9 @@ import { ProfileEditModal } from "@/components/ProfileEditModal";
 import DashboardHome from "@/components/DashboardHome"; // Import the new component
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"; // Import Sheet components
 import { ScrollArea } from "@/components/ui/scroll-area"; // Import ScrollArea
+import UtilitiesList from "@/components/UtilitiesList"; // Import the new UtilitiesList component
 
-type DashboardView = 'home' | 'chat' | 'cameras' | 'map';
+type DashboardView = 'home' | 'chat' | 'cameras' | 'map' | 'utilities'; // Add 'utilities' to the type
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -275,7 +277,7 @@ const Dashboard = () => {
     }
   };
 
-  const handleSelectView = (view: DashboardView | 'profile' | 'police' | 'ambulance' | 'reports') => {
+  const handleSelectView = (view: DashboardView | 'profile' | 'police' | 'ambulance' | 'reports' | 'utilities') => {
     if (view === 'profile') {
       setIsProfileModalOpen(true);
     } else if (view === 'police') {
@@ -294,7 +296,7 @@ const Dashboard = () => {
         description: "Funcionalidade de relatórios e ajuda em desenvolvimento.",
       });
     } else {
-      setActiveView(view);
+      setActiveView(view as DashboardView); // Cast to DashboardView
     }
     setMenuOpen(false); // Close menu after selection
   };
@@ -398,6 +400,10 @@ const Dashboard = () => {
                       <Camera className="h-5 w-5 mr-2" />
                       Câmeras
                     </Button>
+                    <Button variant="ghost" className="justify-start" onClick={() => handleSelectView('utilities')}>
+                      <Tool className="h-5 w-5 mr-2" /> {/* New menu item */}
+                      Utilidades
+                    </Button>
                     <Button variant="ghost" className="justify-start" onClick={() => handleSelectView('map')}>
                       <MapPin className="h-5 w-5 mr-2" />
                       Mapa
@@ -463,6 +469,10 @@ const Dashboard = () => {
 
         {activeView === 'map' && (
           <Map />
+        )}
+
+        {activeView === 'utilities' && ( // New conditional rendering for UtilitiesList
+          <UtilitiesList />
         )}
       </div>
     </div>

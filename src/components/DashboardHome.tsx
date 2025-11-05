@@ -13,12 +13,13 @@ import {
   ClipboardList,
   Ambulance,
   ArrowLeft,
+  Tool, // New icon for Utilities
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface DashboardHomeProps {
   onSOSAlert: () => void;
-  onSelectView: (view: 'home' | 'chat' | 'cameras' | 'map' | 'profile' | 'police' | 'ambulance' | 'reports') => void;
+  onSelectView: (view: 'home' | 'chat' | 'cameras' | 'map' | 'profile' | 'police' | 'ambulance' | 'reports' | 'utilities') => void;
   onOpenProfileEdit: () => void;
   onEmergencyContact: (type: 'police' | 'ambulance') => void;
   onHelpAndReports: () => void;
@@ -39,6 +40,14 @@ const DashboardHome = ({
       description: 'Visualizar câmeras próximas',
       color: 'text-blue-500',
       action: () => onSelectView('cameras'),
+    },
+    {
+      id: 'utilities', // New card for Utilities
+      icon: Tool,
+      title: 'Utilidades',
+      description: 'Contatos de emergência',
+      color: 'text-teal-500',
+      action: () => onSelectView('utilities'),
     },
     {
       id: 'sos',
