@@ -18,6 +18,10 @@ import {
   ChevronRight,
   Clock,
   ArrowLeft,
+  UserRound,
+  ClipboardList,
+  ShieldAlert,
+  Ambulance,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -32,6 +36,7 @@ import Map from "@/components/Map";
 import CameraList from "@/components/cameras/CameraList";
 import { ProfileEditModal } from "@/components/ProfileEditModal";
 import DashboardHome from "@/components/DashboardHome"; // Import the new component
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"; // Import Sheet components
 
 type DashboardView = 'home' | 'chat' | 'cameras' | 'map';
 
@@ -39,7 +44,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, loading, signOut } = useAuth();
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false); // State to control Sheet visibility
   const [profile, setProfile] = useState<{
     id: string;
     full_name: string;
@@ -290,6 +295,7 @@ const Dashboard = () => {
     } else {
       setActiveView(view);
     }
+    setMenuOpen(false); // Close menu after selection
   };
 
   const handleCameraSelect = (camera: any) => {
@@ -363,14 +369,60 @@ const Dashboard = () => {
               </Button>
             </div>
 
-            <Button
-              variant="ghost"
-              size="icon"
-              className="md:hidden"
-              onClick={() => setMenuOpen(!menuOpen)}
-            >
-              <Menu className="h-5 w-5" />
-            </Button>
+            {/* Mobile Menu Trigger */}
+            <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+              <SheetTrigger asChild className="md:hidden">
+                <Button variant="ghost" size="icon">
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-[250px] sm:w-[300px]">
+                <SheetHeader>
+                  <SheetTitle className="flex items-center gap-2">
+                    <img src={logo} alt="AASP Logo" className="h-8 w-8" />
+                    Menu
+                  </SheetTitle>
+                </SheetHeader>
+                <div className="flex flex-col gap-4 mt-8">
+                  <Button variant="ghost" className="justify-start" onClick={() => handleSelectView('home')}>
+                    <Home className="h-5 w-5 mr-2" />
+                    Home
+                  </Button>
+                  <Button variant="ghost" className="justify-start" onClick={() => handleSelectView('chat')}>
+                    <MessageCircle className="h-5 w-5 mr-2" />
+                    Conversas
+                  </Button>
+                  <Button variant="ghost" className="justify-start" onClick={() => handleSelectView('cameras')}>
+                    <Camera className="h-5 w-5 mr-2" />
+                    Câmeras
+                  </Button>
+                  <Button variant="ghost" className="justify-start" onClick={() => handleSelectView('map')}>
+                    <MapPin className="h-5 w-5 mr-2" />
+                    Mapa
+                  </Button>
+                  <Button variant="ghost" className="justify-start" onClick={() => handleSelectView('profile')}>
+                    <UserRound className="h-5 w-5 mr-2" />
+                    Meu Perfil
+                  </Button>
+                  <Button variant="ghost" className="justify-start" onClick={() => handleSelectView('reports')}>
+                    <ClipboardList className="h-5 w-5 mr-2" />
+                    Relatórios
+                  </Button>
+                  <Button variant="ghost" className="justify-start" onClick={() => handleEmergencyContact('police')}>
+                    <ShieldAlert className="h-5 w-5 mr-2" />
+                    Polícia
+                  </Button>
+                  <Button variant="ghost" className="justify-start" onClick={() => handleEmergencyContact('ambulance')}>
+                    <Ambulance className="h-5 w-5 mr-2" />
+                    Ambulância
+                  </Button>
+                  <Button variant="ghost" className="justify-start text-destructive hover:text-destructive" onClick={handleLogout}>
+                    <LogOut className="h-5 w-5 mr-2" />
+                    Sair
+                  </Button>
+                </div>
+              </SheetContent>
+            </Sheet>
           </div>
         </div>
       </header>
