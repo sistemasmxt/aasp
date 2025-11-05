@@ -26,24 +26,7 @@ export const UserList = ({ currentUserId, selectedUserId, onSelectUser }: UserLi
       console.log("Loading users, current user:", currentUserId);
 
       try {
-        // 1. Obter a lista de IDs de usuários com os quais o usuário atual pode enviar mensagens
-        const { data: messageableIds, error: messageableIdsError } = await supabase.rpc('get_messageable_profile_ids');
-
-        if (messageableIdsError) {
-          console.error("Erro ao buscar IDs de usuários que podem ser contatados:", messageableIdsError);
-          toast({
-            title: "Erro ao carregar usuários",
-            description: "Não foi possível determinar quem você pode contatar.",
-            variant: "destructive",
-          });
-          setLoadingUsers(false);
-          return;
-        }
-
-        const messageableIdSet = new Set(messageableIds);
-        console.log("IDs de usuários que podem ser contatados:", messageableIdSet);
-
-        // 2. Carregar todos os perfis (exceto o usuário atual)
+        // Buscar todos os perfis (exceto o do usuário atual)
         const { data: allProfiles, error: profilesError } = await supabase
           .from("profiles")
           .select("id, full_name, avatar_url")
@@ -60,12 +43,9 @@ export const UserList = ({ currentUserId, selectedUserId, onSelectUser }: UserLi
           setLoadingUsers(false);
           return;
         }
-
-        // 3. Filtrar perfis para incluir apenas usuários que podem ser contatados
-        const filteredUsers = (allProfiles || []).filter(profile => messageableIdSet.has(profile.id));
         
-        console.log("Usuários filtrados para o chat:", filteredUsers.length);
-        setUsers(filteredUsers);
+        console.log("Usuários carregados para o chat:", allProfiles?.length || 0);
+        setUsers(allProfiles || []);
 
       } catch (error) {
         console.error("Erro ao carregar usuários:", error);
