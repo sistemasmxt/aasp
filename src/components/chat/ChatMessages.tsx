@@ -187,10 +187,11 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
         .select();
 
       if (error) {
+        console.error("Supabase error details:", error); // Log do erro completo
         if (error.code === '23503') {
           throw new Error('Usuário não encontrado.');
         } else if (error.code === '42501') {
-          throw new Error('Você não tem permissão para enviar mensagens.');
+          throw new Error('Você não tem permissão para enviar mensagens para este usuário.');
         }
         throw error;
       }
