@@ -124,27 +124,21 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
   }, [messages]);
 
   const loadMessages = useCallback(async () => {
-    console.log("Loading messages between:", currentUserId, "and", recipientId);
+    console.log("📥 Carregando mensagens entre:", currentUserId, "e", recipientId);
     
     const { data, error } = await supabase
       .from("messages")
       .select("*")
       .eq("is_group", false)
-      .or(`sender_id.eq.${currentUserId},sender_id.eq.${recipientId}`)
-      .or(`receiver_id.eq.${currentUserId},receiver_id.eq.${recipientId}`)
+      .or(`and(sender_id.eq.${currentUserId},receiver_id.eq.${recipientId}),and(sender_id.eq.${recipientId},receiver_id.eq.${currentUserId})`)
       .order("created_at", { ascending: true });
 
-    console.log("Messages loaded:", data?.length || 0, "Error:", error);
-    if (error) console.error("Load messages error:", error);
+    console.log("📊 Mensagens carregadas:", data?.length || 0, "Erro:", error);
+    if (error) console.error("❌ Erro ao carregar mensagens:", error);
 
     if (data) {
-      // Filter to ensure messages are between the two users
-      const filteredMessages = data.filter(msg => 
-        (msg.sender_id === currentUserId && msg.receiver_id === recipientId) ||
-        (msg.sender_id === recipientId && msg.receiver_id === currentUserId)
-      );
-      console.log("Filtered messages:", filteredMessages.length);
-      setMessages(filteredMessages);
+      console.log("✅ Mensagens definidas:", data.length);
+      setMessages(data);
     }
   }, [currentUserId, recipientId]);
 
@@ -167,7 +161,20 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
 
     setSending(true);
     try {
-      // Verificação de permissão será feita no backend via RLS
+      // Validar autenticação
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log('🔐 Validação de sessão:', {
+        sessionExists: !!session,
+        sessionUserId: session?.user?.id,
+        currentUserId,
+        recipientId,
+        match: session?.user?.id === currentUserId
+      });
+
+      if (!session || session.user.id !== currentUserId) {
+        throw new Error('Sessão inválida. Por favor, faça login novamente.');
+      }
+
       // Verifica se a mensagem já existe para evitar duplicação
       const existingMessage = messages.find(m => 
         m.sender_id === currentUserId && 
@@ -187,13 +194,23 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
         is_group: false,
       };
       
-      console.log('Enviando mensagem:', messageData);
+      console.log('📤 Enviando mensagem:', messageData);
       const { data, error } = await supabase
         .from("messages")
         .insert(messageData)
         .select();
 
+      console.log('📨 Resposta completa do Supabase:', { data, error });
+
       if (error) {
+        console.error('❌ ERRO DETALHADO DO SUPABASE:', {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint,
+          fullError: JSON.stringify(error, null, 2)
+        });
+        
         if (error.code === '23503') {
           throw new Error('Usuário não encontrado.');
         } else if (error.code === '42501') {
@@ -203,15 +220,26 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
       }
 
       if (data && data.length > 0) {
+        console.log('✅ Mensagem enviada com sucesso!', data[0]);
         setMessages((prev) => (prev.some(m => m.id === data[0].id) ? prev : [...prev, data[0]]));
       }
       setNewMessage("");
       scrollToBottom();
     } catch (error: unknown) {
-      console.error("Error sending message:", error);
+      console.error("❌ ERRO CAPTURADO NO CATCH:", {
+        errorType: typeof error,
+        errorMessage: (error as any)?.message,
+        errorCode: (error as any)?.code,
+        errorDetails: (error as any)?.details,
+        fullError: JSON.stringify(error, null, 2)
+      });
+      
+      const errorMessage = mapErrorToUserMessage(error);
+      console.error('📢 Mensagem exibida ao usuário:', errorMessage);
+      
       toast({
         title: "Erro ao enviar mensagem",
-        description: mapErrorToUserMessage(error),
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
