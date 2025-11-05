@@ -201,7 +201,7 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
       setNewMessage("");
       scrollToBottom();
     } catch (error: unknown) {
-      console.error("Error sending message:", error);
+      console.error("Error sending message:", error); // Adicionado log detalhado aqui
       toast({
         title: "Erro ao enviar mensagem",
         description: mapErrorToUserMessage(error),

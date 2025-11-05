@@ -8,6 +8,8 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import logo from "@/img/logo.png";
 import { z } from "zod";
+import { supabase } from "@/integrations/supabase/client";
+import { mapErrorToUserMessage } from "@/lib/errorHandler";
 
 // Schema de validação para login de admin
 const adminLoginSchema = z.object({
@@ -27,21 +29,34 @@ const AdminLogin = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    // Verificar se usuário já está logado como admin
     checkAdminSession();
-  }, []); // Remove navigate from dependencies to prevent re-runs
+  }, []);
 
-  const checkAdminSession = () => {
-    const adminLoggedIn = sessionStorage.getItem('adminLoggedIn') === 'true';
-    if (adminLoggedIn) {
-      setTimeout(() => {
-        navigate("/admin", { replace: true });
-      }, 100);
+  const checkAdminSession = async () => {
+    setIsLoading(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: roles, error: rolesError } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .eq('role', 'admin')
+          .single();
+
+        if (roles && !rolesError) {
+          sessionStorage.setItem('adminLoggedIn', 'true');
+          navigate("/admin", { replace: true });
+          return;
+        }
+      }
     }
+    sessionStorage.removeItem('adminLoggedIn'); // Ensure it's cleared if not admin
     setIsLoading(false);
   };
 
-  const handleAdminLogin = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleAdminLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
 
@@ -52,27 +67,82 @@ const AdminLogin = () => {
     };
 
     try {
-      // Validar entrada
       const validatedData = adminLoginSchema.parse(rawData);
 
-      // Credenciais hardcoded para admin
-      const adminCredentials = {
-        email: 'admin@aasp.com',
-        password: 'admin123'
-      };
+      // Attempt to sign in with Supabase
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email: validatedData.email,
+        password: validatedData.password
+      });
 
-      // Verificar credenciais
-      if (validatedData.email === adminCredentials.email && validatedData.password === adminCredentials.password) {
-        // Login bem-sucedido, salvar no sessionStorage
-        sessionStorage.setItem('adminLoggedIn', 'true');
+      if (authError) {
+        // If user not found, try to create them (for the hardcoded admin)
+        if (authError.message.includes('invalid login credentials') || authError.message.includes('user not found')) {
+          // This is a special case for the initial hardcoded admin setup
+          if (validatedData.email === 'admin@aasp.com' && validatedData.password === 'admin123') {
+            const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+              email: validatedData.email,
+              password: validatedData.password,
+              options: {
+                data: {
+                  full_name: 'Administrador',
+                  phone: '', // Or a default phone number
+                }
+              }
+            });
 
-        toast({
-          title: "Login administrativo realizado com sucesso!",
-          description: "Bem-vindo ao Painel Central"
-        });
+            if (signUpError) throw signUpError;
 
-        // Navigate to admin panel
-        navigate("/admin", { replace: true });
+            if (signUpData.user) {
+              // Ensure profile exists (handle_new_user trigger should do this)
+              // Add admin role
+              const { error: roleError } = await supabase
+                .from('user_roles')
+                .insert({ user_id: signUpData.user.id, role: 'admin' });
+
+              if (roleError) throw roleError;
+
+              // Sign in the newly created admin
+              const { error: signInAfterSignUpError } = await supabase.auth.signInWithPassword({
+                email: validatedData.email,
+                password: validatedData.password
+              });
+              if (signInAfterSignUpError) throw signInAfterSignUpError;
+
+              sessionStorage.setItem('adminLoggedIn', 'true');
+              toast({
+                title: "Login administrativo realizado com sucesso!",
+                description: "Bem-vindo ao Painel Central"
+              });
+              navigate("/admin", { replace: true });
+              return;
+            }
+          }
+        }
+        throw authError;
+      }
+
+      if (data.user) {
+        // Check if the logged-in user has the 'admin' role
+        const { data: roles, error: rolesError } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', data.user.id)
+          .eq('role', 'admin')
+          .single();
+
+        if (roles && !rolesError) {
+          sessionStorage.setItem('adminLoggedIn', 'true');
+          toast({
+            title: "Login administrativo realizado com sucesso!",
+            description: "Bem-vindo ao Painel Central"
+          });
+          navigate("/admin", { replace: true });
+        } else {
+          // If authenticated but not an admin role
+          await supabase.auth.signOut(); // Log out non-admin user
+          throw new Error('Acesso negado. Você não tem permissões de administrador.');
+        }
       } else {
         throw new Error('Credenciais inválidas. Acesso negado.');
       }
@@ -87,7 +157,7 @@ const AdminLogin = () => {
       } else {
         toast({
           title: "Erro ao fazer login administrativo",
-          description: error.message || "Credenciais inválidas",
+          description: mapErrorToUserMessage(error),
           variant: "destructive"
         });
       }
