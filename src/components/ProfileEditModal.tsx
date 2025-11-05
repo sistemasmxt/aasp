@@ -34,12 +34,14 @@ interface ProfileEditModalProps {
     updated_at: string;
   } | null;
   onProfileUpdate: (updatedProfile: any) => void;
+  open?: boolean; // Add open prop
+  onOpenChange?: (open: boolean) => void; // Add onOpenChange prop
 }
 
-export const ProfileEditModal = ({ profile, onProfileUpdate }: ProfileEditModalProps) => {
+export const ProfileEditModal = ({ profile, onProfileUpdate, open, onOpenChange }: ProfileEditModalProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [open, setOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false); // Internal state for dialog
   const [loading, setLoading] = useState(false);
 
   // Profile data
@@ -66,6 +68,13 @@ export const ProfileEditModal = ({ profile, onProfileUpdate }: ProfileEditModalP
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+
+  // Sync internal dialog state with external props
+  useEffect(() => {
+    if (open !== undefined) {
+      setDialogOpen(open);
+    }
+  }, [open]);
 
   useEffect(() => {
     if (profile) {
@@ -517,7 +526,8 @@ export const ProfileEditModal = ({ profile, onProfileUpdate }: ProfileEditModalP
         description: "Suas informações foram salvas com sucesso.",
       });
 
-      setOpen(false);
+      setDialogOpen(false); // Close internal dialog state
+      if (onOpenChange) onOpenChange(false); // Notify parent
     } catch (error: unknown) {
       console.error('Profile update error:', error);
       toast({
@@ -579,11 +589,17 @@ export const ProfileEditModal = ({ profile, onProfileUpdate }: ProfileEditModalP
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={dialogOpen} onOpenChange={(isOpen) => {
+      setDialogOpen(isOpen);
+      if (onOpenChange) onOpenChange(isOpen);
+    }}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="icon">
-          <Settings className="h-5 w-5" />
-        </Button>
+        {/* Only render trigger if not controlled by parent or if parent explicitly wants it */}
+        {open === undefined && (
+          <Button variant="ghost" size="icon">
+            <Settings className="h-5 w-5" />
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>

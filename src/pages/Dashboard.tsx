@@ -17,13 +17,13 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
+  ArrowLeft,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import logo from "@/img/logo.png";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { mapErrorToUserMessage } from "@/lib/errorHandler";
@@ -31,6 +31,10 @@ import { ChatInterface } from "@/components/chat/ChatInterface";
 import Map from "@/components/Map";
 import CameraList from "@/components/cameras/CameraList";
 import { ProfileEditModal } from "@/components/ProfileEditModal";
+import DashboardHome from "@/components/DashboardHome"; // Import the new component
+
+type DashboardView = 'home' | 'chat' | 'cameras' | 'map';
+
 const Dashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -61,9 +65,10 @@ const Dashboard = () => {
   }[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const alertsPerPage = 5;
-
-  // Protection is now handled by ProtectedRoute wrapper
-  // This component only renders for authenticated users
+  const [activeView, setActiveView] = useState<DashboardView>('home');
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [selectedChatUserId, setSelectedChatUserId] = useState<string | null>(null);
+  const [selectedCamera, setSelectedCamera] = useState<any>(null); // State to hold selected camera for viewer
 
   useEffect(() => {
     if (user) {
@@ -172,40 +177,6 @@ const Dashboard = () => {
     }
   }, [user, toast]);
 
-  const [stats, setStats] = useState([
-    { label: "Associados Ativos", value: "0", icon: Users, color: "text-primary" },
-    { label: "Câmeras Ativas", value: "0", icon: Camera, color: "text-accent" },
-    { label: "Alertas Hoje", value: alerts.length.toString(), icon: Bell, color: "text-warning" },
-    { label: "Status Pagamento", value: "Em dia", icon: DollarSign, color: "text-success" },
-  ]);
-
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const [
-          { count: usersCount },
-          { data: cameras },
-        ] = await Promise.all([
-          supabase.from('profiles').select('*', { count: 'exact', head: true }),
-          supabase.from('cameras').select('is_active'),
-        ]);
-
-        const activeCameras = cameras?.filter(c => c.is_active).length || 0;
-
-        setStats([
-          { label: "Associados Ativos", value: (usersCount || 0).toString(), icon: Users, color: "text-primary" },
-          { label: "Câmeras Ativas", value: activeCameras.toString(), icon: Camera, color: "text-accent" },
-          { label: "Alertas Hoje", value: alerts.length.toString(), icon: Bell, color: "text-warning" },
-          { label: "Status Pagamento", value: "Em dia", icon: DollarSign, color: "text-success" },
-        ]);
-      } catch (error) {
-        console.error('Error fetching stats:', error);
-      }
-    };
-
-    fetchStats();
-  }, [alerts.length]);
-
   const handleLogout = async () => {
     await signOut();
     navigate("/");
@@ -298,17 +269,51 @@ const Dashboard = () => {
     }
   };
 
-  // Pagination logic
-  const totalPages = Math.ceil(alerts.length / alertsPerPage);
-  const startIndex = (currentPage - 1) * alertsPerPage;
-  const endIndex = startIndex + alertsPerPage;
-  const currentAlerts = alerts.slice(startIndex, endIndex);
-
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
+  const handleSelectView = (view: DashboardView | 'profile' | 'police' | 'ambulance' | 'reports') => {
+    if (view === 'profile') {
+      setIsProfileModalOpen(true);
+    } else if (view === 'police') {
+      toast({
+        title: "🚨 Contato com a Polícia",
+        description: "Funcionalidade de contato com a polícia em desenvolvimento.",
+      });
+    } else if (view === 'ambulance') {
+      toast({
+        title: "🚑 Contato com a Ambulância",
+        description: "Funcionalidade de contato com a ambulância em desenvolvimento.",
+      });
+    } else if (view === 'reports') {
+      toast({
+        title: "📝 Relatórios e Ajuda",
+        description: "Funcionalidade de relatórios e ajuda em desenvolvimento.",
+      });
+    } else {
+      setActiveView(view);
+    }
   };
 
-  // Loading state is now handled by ProtectedRoute wrapper
+  const handleCameraSelect = (camera: any) => {
+    setSelectedCamera(camera);
+    // Optionally, change view to a dedicated camera viewer if you create one
+    // For now, we'll just log it or open a modal
+    toast({
+      title: "Câmera Selecionada",
+      description: `Você selecionou a câmera: ${camera.name}`,
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-hero">
+        <div className="text-center">
+          <img src={logo} alt="AASP Logo" className="h-20 w-20 mx-auto mb-4 animate-pulse" />
+          <p className="text-muted-foreground">
+            Verificando autenticação...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -317,6 +322,11 @@ const Dashboard = () => {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
+              {activeView !== 'home' && (
+                <Button variant="ghost" size="icon" onClick={() => setActiveView('home')} className="mr-2">
+                  <ArrowLeft className="h-5 w-5" />
+                </Button>
+              )}
               <img src={logo} alt="AASP Logo" className="h-10 w-10" />
               <span className="text-2xl font-bold text-foreground">AASP</span>
             </div>
@@ -333,7 +343,7 @@ const Dashboard = () => {
                   </Badge>
                 )}
               </Button>
-              <ProfileEditModal profile={profile} onProfileUpdate={setProfile} />
+              <ProfileEditModal profile={profile} onProfileUpdate={setProfile} open={isProfileModalOpen} onOpenChange={setIsProfileModalOpen} />
               <div className="flex items-center gap-3 ml-4">
                 <Avatar>
                   <AvatarImage src={profile?.avatar_url || ""} />
@@ -366,207 +376,39 @@ const Dashboard = () => {
       </header>
 
       <div className="container mx-auto px-4 py-8">
-        {/* Emergency SOS Button */}
-        <div className="mb-8">
-          <Button
-            onClick={handleSOSAlert}
-            size="lg"
-            className="w-full md:w-auto bg-gradient-emergency hover:opacity-90 text-white font-bold text-lg py-6 px-8 shadow-glow"
-          >
-            <AlertCircle className="mr-2 h-6 w-6" />
-            ALERTA SOS DE EMERGÊNCIA
-          </Button>
-        </div>
+        {activeView === 'home' && (
+          <DashboardHome
+            onSOSAlert={handleSOSAlert}
+            onSelectView={handleSelectView}
+            onOpenProfileEdit={() => setIsProfileModalOpen(true)}
+            onEmergencyContact={(type) => {
+              if (type === 'police') {
+                toast({ title: "🚨 Contato com a Polícia", description: "Chamando a polícia...", variant: "destructive" });
+              } else if (type === 'ambulance') {
+                toast({ title: "🚑 Contato com a Ambulância", description: "Chamando a ambulância...", variant: "destructive" });
+              }
+            }}
+            onHelpAndReports={() => {
+              toast({ title: "📝 Relatórios e Ajuda", description: "Abrindo formulário de relatórios...", variant: "default" });
+            }}
+          />
+        )}
 
-        {/* Stats Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {stats.map((stat, index) => (
-            <Card key={index} className="p-6 hover:shadow-card transition-shadow">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">{stat.label}</p>
-                  <p className="text-2xl font-bold text-foreground">{stat.value}</p>
-                </div>
-                <stat.icon className={`h-10 w-10 ${stat.color}`} />
-              </div>
-            </Card>
-          ))}
-        </div>
+        {activeView === 'chat' && user && (
+          <ChatInterface
+            currentUserId={user.id}
+            recipientId={selectedChatUserId || ''} // You might need a way to select a recipient
+            recipientProfile={null} // This will be loaded inside ChatInterface
+          />
+        )}
 
-        {/* Main Content Tabs */}
-        <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">
-            <TabsTrigger value="overview">
-              <Home className="h-4 w-4 mr-2" />
-              Visão Geral
-            </TabsTrigger>
-            <TabsTrigger value="chat">
-              <MessageCircle className="h-4 w-4 mr-2" />
-              Chat
-            </TabsTrigger>
-            <TabsTrigger value="cameras">
-              <Camera className="h-4 w-4 mr-2" />
-              Câmeras
-            </TabsTrigger>
-            <TabsTrigger value="map">
-              <MapPin className="h-4 w-4 mr-2" />
-              Mapa
-            </TabsTrigger>
-          </TabsList>
+        {activeView === 'cameras' && (
+          <CameraList onCameraSelect={handleCameraSelect} />
+        )}
 
-          <TabsContent value="overview" className="space-y-6">
-            <Card className="p-6">
-              <h2 className="text-xl font-semibold text-foreground mb-4">
-                Alertas Recentes
-              </h2>
-              <div className="space-y-4">
-                {currentAlerts.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-4">
-                    Nenhum alerta ativo no momento
-                  </p>
-                ) : (
-                  currentAlerts.map((alert) => (
-                    <div
-                      key={alert.id}
-                      className={`flex items-start gap-3 p-4 rounded-lg transition-all duration-300 ${
-                        alert.is_active 
-                          ? "bg-muted/50 hover:bg-muted/70" 
-                          : "bg-green-50/50 border border-green-200 hover:bg-green-50/70"
-                      }`}
-                    >
-                      {alert.is_active ? (
-                        <AlertCircle className="h-5 w-5 mt-0.5 text-emergency" />
-                      ) : (
-                        <CheckCircle className="h-5 w-5 mt-0.5 text-green-600" />
-                      )}
-                      <div className="flex-1">
-                        <p className={`text-sm ${alert.is_active ? "text-foreground" : "text-green-800"}`}>
-                          <strong>{alert.user_name}</strong> - {alert.alert_type === "robbery"
-                            ? "Assalto"
-                            : alert.alert_type === "assault"
-                            ? "Agressão"
-                            : "Emergência"}
-                          {alert.message && ` - ${alert.message}`}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1 flex-wrap">
-                          <span className="inline-flex items-center">
-                            <MapPin className="h-3 w-3 mr-1" />
-                            Lat: {alert.latitude.toFixed(6)}, Lon: {alert.longitude.toFixed(6)}
-                          </span>
-                          <span>•</span>
-                          <span className="inline-flex items-center">
-                            <Clock className="h-3 w-3 mr-1" />
-                            {new Date(alert.created_at).toLocaleString("pt-BR")}
-                          </span>
-                          {alert.resolved_at && (
-                            <>
-                              <span>•</span>
-                              <span className="inline-flex items-center text-green-600">
-                                <CheckCircle className="h-3 w-3 mr-1" />
-                                Resolvido em {new Date(alert.resolved_at).toLocaleString("pt-BR")}
-                              </span>
-                            </>
-                          )}
-                        </p>
-                      </div>
-                      {alert.is_active && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleResolveAlert(alert.id)}
-                          className="ml-2"
-                        >
-                          <CheckCircle className="h-4 w-4 mr-1" />
-                          Resolver
-                        </Button>
-                      )}
-                    </div>
-                  ))
-                )}
-              </div>
-
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="flex items-center justify-between mt-6">
-                  <p className="text-sm text-muted-foreground">
-                    Mostrando {startIndex + 1}-{Math.min(endIndex, alerts.length)} de {alerts.length} alertas
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(currentPage - 1)}
-                      disabled={currentPage === 1}
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                      Anterior
-                    </Button>
-                    <span className="text-sm text-muted-foreground">
-                      Página {currentPage} de {totalPages}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(currentPage + 1)}
-                      disabled={currentPage === totalPages}
-                    >
-                      Próxima
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </Card>
-
-            <Card className="p-6">
-              <h2 className="text-xl font-semibold text-foreground mb-4">
-                Acesso Rápido
-              </h2>
-              <div className="grid md:grid-cols-2 gap-4">
-                <Button variant="outline" className="h-20 justify-start">
-                  <Camera className="h-6 w-6 mr-3 text-primary" />
-                  <div className="text-left">
-                    <p className="font-medium">Visualizar Câmeras</p>
-                    <p className="text-xs text-muted-foreground">{stats[1].value} câmeras disponíveis</p>
-                  </div>
-                </Button>
-                <Button variant="outline" className="h-20 justify-start">
-                  <MessageCircle className="h-6 w-6 mr-3 text-primary" />
-                  <div className="text-left">
-                    <p className="font-medium">Mensagens</p>
-                    <p className="text-xs text-muted-foreground">Chat em tempo real</p>
-                  </div>
-                </Button>
-                <Button variant="outline" className="h-20 justify-start">
-                  <MapPin className="h-6 w-6 mr-3 text-primary" />
-                  <div className="text-left">
-                    <p className="font-medium">Mapa da Região</p>
-                    <p className="text-xs text-muted-foreground">Ver pontos de monitoramento</p>
-                  </div>
-                </Button>
-                <Button variant="outline" className="h-20 justify-start">
-                  <Users className="h-6 w-6 mr-3 text-primary" />
-                  <div className="text-left">
-                    <p className="font-medium">Associados</p>
-                    <p className="text-xs text-muted-foreground">{stats[0].value} membros</p>
-                  </div>
-                </Button>
-              </div>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="chat" className="space-y-4">
-            <ChatInterface />
-          </TabsContent>
-
-          <TabsContent value="cameras" className="space-y-4">
-            <CameraList onCameraSelect={() => {}} />
-          </TabsContent>
-
-          <TabsContent value="map" className="space-y-4">
-            <Map />
-          </TabsContent>
-        </Tabs>
+        {activeView === 'map' && (
+          <Map />
+        )}
       </div>
     </div>
   );
