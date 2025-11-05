@@ -160,9 +160,6 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
 
     setSending(true);
     try {
-      // Verificação de permissão será feita no backend via RLS
-      console.log('Enviando mensagem sem verificação de permissão no frontend...');
-
       // Verifica se a mensagem já existe para evitar duplicação
       const existingMessage = messages.find(m => 
         m.sender_id === currentUserId && 
@@ -188,12 +185,7 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
 
       if (error) {
         console.error("Supabase error details:", error); // Log do erro completo
-        if (error.code === '23503') {
-          throw new Error('Usuário não encontrado.');
-        } else if (error.code === '42501') {
-          throw new Error('Você não tem permissão para enviar mensagens para este usuário.');
-        }
-        throw error;
+        throw error; // Lança o erro para ser capturado pelo catch
       }
 
       if (data && data.length > 0) {
