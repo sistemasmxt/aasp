@@ -125,19 +125,26 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
 
   const loadMessages = useCallback(async () => {
     console.log("Loading messages between:", currentUserId, "and", recipientId);
+    
     const { data, error } = await supabase
       .from("messages")
       .select("*")
-      .or(
-        `and(sender_id.eq.${currentUserId},receiver_id.eq.${recipientId}),and(sender_id.eq.${recipientId},receiver_id.eq.${currentUserId})`
-      )
       .eq("is_group", false)
+      .or(`sender_id.eq.${currentUserId},sender_id.eq.${recipientId}`)
+      .or(`receiver_id.eq.${currentUserId},receiver_id.eq.${recipientId}`)
       .order("created_at", { ascending: true });
 
     console.log("Messages loaded:", data?.length || 0, "Error:", error);
+    if (error) console.error("Load messages error:", error);
 
     if (data) {
-      setMessages(data);
+      // Filter to ensure messages are between the two users
+      const filteredMessages = data.filter(msg => 
+        (msg.sender_id === currentUserId && msg.receiver_id === recipientId) ||
+        (msg.sender_id === recipientId && msg.receiver_id === currentUserId)
+      );
+      console.log("Filtered messages:", filteredMessages.length);
+      setMessages(filteredMessages);
     }
   }, [currentUserId, recipientId]);
 
@@ -161,8 +168,6 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
     setSending(true);
     try {
       // Verificação de permissão será feita no backend via RLS
-      console.log('Enviando mensagem sem verificação de permissão no frontend...');
-
       // Verifica se a mensagem já existe para evitar duplicação
       const existingMessage = messages.find(m => 
         m.sender_id === currentUserId && 
@@ -174,16 +179,18 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
         throw new Error('Aguarde alguns segundos antes de enviar a mesma mensagem.');
       }
 
-      console.log('Enviando mensagem...');
+      const messageData = {
+        sender_id: currentUserId,
+        receiver_id: recipientId,
+        content: messageContent,
+        message_type: "text",
+        is_group: false,
+      };
+      
+      console.log('Enviando mensagem:', messageData);
       const { data, error } = await supabase
         .from("messages")
-        .insert({
-          sender_id: currentUserId,
-          receiver_id: recipientId,
-          content: messageContent,
-          message_type: "text",
-          is_group: false,
-        })
+        .insert(messageData)
         .select();
 
       if (error) {
