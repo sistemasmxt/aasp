@@ -80,8 +80,6 @@ const AuditLogs = () => {
       users: 'Usuários',
       cameras: 'Câmeras',
       payments: 'Pagamentos',
-      groups: 'Grupos',
-      group_members: 'Membros de Grupo',
       user_roles: 'Permissões',
     };
     

@@ -15,9 +15,8 @@ interface Message {
   receiver_id: string | null;
   content: string | null;
   message_type: string;
-  is_group: boolean;
+  is_group: boolean; // Keep is_group, but it will always be false for direct messages
   created_at: string;
-  group_id: string | null;
   delivered_at: string | null;
   read_at: string | null;
 }
@@ -131,7 +130,7 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
       .or(
         `and(sender_id.eq.${currentUserId},receiver_id.eq.${recipientId}),and(sender_id.eq.${recipientId},receiver_id.eq.${currentUserId})`
       )
-      .eq("is_group", false)
+      .eq("is_group", false) // Ensure only direct messages are loaded
       .order("created_at", { ascending: true });
 
     console.log("Messages loaded:", data?.length || 0, "Error:", error);
@@ -179,7 +178,7 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
           receiver_id: recipientId,
           content: messageContent,
           message_type: "text",
-          is_group: false,
+          is_group: false, // Always false for direct messages
         })
         .select();
 

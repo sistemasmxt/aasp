@@ -22,7 +22,7 @@ import {
   ClipboardList,
   ShieldAlert,
   Ambulance,
-  Wrench, // Changed from Tool to Wrench
+  Wrench,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -36,18 +36,18 @@ import { ChatInterface } from "@/components/chat/ChatInterface";
 import Map from "@/components/Map";
 import CameraList from "@/components/cameras/CameraList";
 import { ProfileEditModal } from "@/components/ProfileEditModal";
-import DashboardHome from "@/components/DashboardHome"; // Import the new component
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"; // Import Sheet components
-import { ScrollArea } from "@/components/ui/scroll-area"; // Import ScrollArea
-import UtilitiesList from "@/components/UtilitiesList"; // Import the new UtilitiesList component
+import DashboardHome from "@/components/DashboardHome";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import UtilitiesList from "@/components/UtilitiesList";
 
-type DashboardView = 'home' | 'chat' | 'cameras' | 'map' | 'utilities'; // Add 'utilities' to the type
+type DashboardView = 'home' | 'chat' | 'cameras' | 'map' | 'utilities';
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, loading, signOut } = useAuth();
-  const [menuOpen, setMenuOpen] = useState(false); // State to control Sheet visibility
+  const [menuOpen, setMenuOpen] = useState(false);
   const [profile, setProfile] = useState<{
     id: string;
     full_name: string;
@@ -76,7 +76,7 @@ const Dashboard = () => {
   const [activeView, setActiveView] = useState<DashboardView>('home');
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [selectedChatUserId, setSelectedChatUserId] = useState<string | null>(null);
-  const [selectedCamera, setSelectedCamera] = useState<any>(null); // State to hold selected camera for viewer
+  const [selectedCamera, setSelectedCamera] = useState<any>(null);
 
   useEffect(() => {
     if (user) {
@@ -277,7 +277,7 @@ const Dashboard = () => {
     }
   };
 
-  const handleSelectView = (view: DashboardView | 'profile' | 'police' | 'ambulance' | 'reports' | 'utilities') => {
+  const handleSelectView = (view: DashboardView | 'profile' | 'police' | 'ambulance' | 'reports') => {
     if (view === 'profile') {
       setIsProfileModalOpen(true);
     } else if (view === 'police') {
@@ -296,15 +296,13 @@ const Dashboard = () => {
         description: "Funcionalidade de relatórios e ajuda em desenvolvimento.",
       });
     } else {
-      setActiveView(view as DashboardView); // Cast to DashboardView
+      setActiveView(view as DashboardView);
     }
-    setMenuOpen(false); // Close menu after selection
+    setMenuOpen(false);
   };
 
   const handleCameraSelect = (camera: any) => {
     setSelectedCamera(camera);
-    // Optionally, change view to a dedicated camera viewer if you create one
-    // For now, we'll just log it or open a modal
     toast({
       title: "Câmera Selecionada",
       description: `Você selecionou a câmera: ${camera.name}`,
@@ -401,7 +399,7 @@ const Dashboard = () => {
                       Câmeras
                     </Button>
                     <Button variant="ghost" className="justify-start" onClick={() => handleSelectView('utilities')}>
-                      <Wrench className="h-5 w-5 mr-2" /> {/* New menu item */}
+                      <Wrench className="h-5 w-5 mr-2" />
                       Utilidades
                     </Button>
                     <Button variant="ghost" className="justify-start" onClick={() => handleSelectView('map')}>
@@ -458,8 +456,8 @@ const Dashboard = () => {
         {activeView === 'chat' && user && (
           <ChatInterface
             currentUserId={user.id}
-            recipientId={selectedChatUserId || ''} // You might need a way to select a recipient
-            recipientProfile={null} // This will be loaded inside ChatInterface
+            recipientId={selectedChatUserId || ''}
+            recipientProfile={null}
           />
         )}
 
@@ -471,7 +469,7 @@ const Dashboard = () => {
           <Map />
         )}
 
-        {activeView === 'utilities' && ( // New conditional rendering for UtilitiesList
+        {activeView === 'utilities' && (
           <UtilitiesList />
         )}
       </div>

@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import {
   ArrowLeft,
   Users,
@@ -17,7 +16,6 @@ import {
   Activity,
   BarChart3,
   FileText,
-  UserCheck,
   AlertTriangle,
   CheckCircle,
   XCircle,
@@ -31,7 +29,6 @@ import { supabase } from '@/integrations/supabase/client';
 import UserManagement from '@/components/admin/UserManagementEnhanced';
 import CameraManagement from '@/components/admin/CameraManagementEnhanced';
 import PaymentManagement from '@/components/admin/PaymentManagement';
-import GroupManagement from '@/components/admin/GroupManagementEnhanced';
 import AdminDashboard from '@/components/admin/AdminDashboard';
 import AuditLogs from '@/components/admin/AuditLogs';
 
@@ -42,7 +39,6 @@ interface SystemStats {
   activeCameras: number;
   totalPayments: number;
   pendingPayments: number;
-  totalGroups: number;
   systemHealth: 'healthy' | 'warning' | 'critical';
   lastBackup: string;
   databaseSize: string;
@@ -95,11 +91,6 @@ const AdminBackend = () => {
         .select('*', { count: 'exact', head: true })
         .eq('status', 'pending');
 
-      // Get group stats
-      const { count: totalGroups } = await supabase
-        .from('groups')
-        .select('*', { count: 'exact', head: true });
-
       // Get active users (users who logged in within last 30 days)
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -120,7 +111,6 @@ const AdminBackend = () => {
         activeCameras: activeCameras || 0,
         totalPayments: totalPayments || 0,
         pendingPayments: pendingPayments || 0,
-        totalGroups: totalGroups || 0,
         systemHealth,
         lastBackup: new Date().toISOString(),
         databaseSize: '2.4 GB'
@@ -264,7 +254,7 @@ const AdminBackend = () => {
                  stats?.systemHealth === 'warning' ? 'ATENÇÃO' : 'CRÍTICO'}
               </div>
               <p className="text-xs text-slate-400">
-                {stats?.totalGroups || 0} grupos
+                Saúde geral do sistema
               </p>
             </CardContent>
           </Card>
@@ -366,7 +356,7 @@ const AdminBackend = () => {
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="dashboard" className="space-y-6">
-              <TabsList className="grid w-full grid-cols-6 bg-slate-800">
+              <TabsList className="grid w-full grid-cols-5 bg-slate-800">
                 <TabsTrigger value="dashboard" className="data-[state=active]:bg-slate-700">
                   <BarChart3 className="h-4 w-4 mr-2" />
                   Dashboard
@@ -382,10 +372,6 @@ const AdminBackend = () => {
                 <TabsTrigger value="payments" className="data-[state=active]:bg-slate-700">
                   <DollarSign className="h-4 w-4 mr-2" />
                   Pagamentos
-                </TabsTrigger>
-                <TabsTrigger value="groups" className="data-[state=active]:bg-slate-700">
-                  <UserCheck className="h-4 w-4 mr-2" />
-                  Grupos
                 </TabsTrigger>
                 <TabsTrigger value="logs" className="data-[state=active]:bg-slate-700">
                   <FileText className="h-4 w-4 mr-2" />
@@ -407,10 +393,6 @@ const AdminBackend = () => {
 
               <TabsContent value="payments" className="space-y-4">
                 <PaymentManagement />
-              </TabsContent>
-
-              <TabsContent value="groups" className="space-y-4">
-                <GroupManagement />
               </TabsContent>
 
               <TabsContent value="logs" className="space-y-4">

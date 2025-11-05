@@ -32,12 +32,6 @@ export const paymentSchema = z.object({
   status: z.enum(['pending', 'paid', 'overdue'], { required_error: 'Status obrigatório' }),
 });
 
-// Group validation schema
-export const groupSchema = z.object({
-  name: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres').max(100, 'Nome muito longo'),
-  description: z.string().max(500, 'Descrição muito longa').optional().or(z.literal('')),
-});
-
 // Emergency alert validation schema
 export const emergencyAlertSchema = z.object({
   latitude: z.number().min(-90, 'Latitude inválida').max(90, 'Latitude inválida'),

@@ -12,8 +12,6 @@ interface DashboardStats {
   paidPayments: number;
   pendingPayments: number;
   overduePayments: number;
-  totalGroups: number;
-  totalGroupMembers: number;
 }
 
 const AdminDashboard = () => {
@@ -26,8 +24,6 @@ const AdminDashboard = () => {
     paidPayments: 0,
     pendingPayments: 0,
     overduePayments: 0,
-    totalGroups: 0,
-    totalGroupMembers: 0,
   });
   const [loading, setLoading] = useState(true);
 
@@ -43,16 +39,12 @@ const AdminDashboard = () => {
         { data: cameras },
         { count: paymentsCount },
         { data: payments },
-        { count: groupsCount },
-        { count: membersCount },
       ] = await Promise.all([
         supabase.from('profiles').select('*', { count: 'exact', head: true }),
         supabase.from('user_roles').select('*', { count: 'exact', head: true }).eq('role', 'admin'),
         supabase.from('cameras').select('is_active'),
         supabase.from('payments').select('*', { count: 'exact', head: true }),
         supabase.from('payments').select('status'),
-        supabase.from('groups').select('*', { count: 'exact', head: true }),
-        supabase.from('group_members').select('*', { count: 'exact', head: true }),
       ]);
 
       const activeCameras = cameras?.filter(c => c.is_active).length || 0;
@@ -69,8 +61,6 @@ const AdminDashboard = () => {
         paidPayments,
         pendingPayments,
         overduePayments,
-        totalGroups: groupsCount || 0,
-        totalGroupMembers: membersCount || 0,
       });
     } catch (error) {
       console.error('Error fetching stats:', error);
@@ -140,13 +130,13 @@ const AdminDashboard = () => {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Grupos</CardTitle>
+            <CardTitle className="text-sm font-medium">Saúde do Sistema</CardTitle>
             <Shield className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalGroups}</div>
+            <div className="text-2xl font-bold">OK</div>
             <p className="text-xs text-muted-foreground">
-              {stats.totalGroupMembers} membros
+              Monitoramento ativo
             </p>
           </CardContent>
         </Card>

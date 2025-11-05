@@ -9,7 +9,6 @@ import { useToast } from '@/hooks/use-toast';
 import UserManagement from '@/components/admin/UserManagementEnhanced';
 import CameraManagement from '@/components/admin/CameraManagementEnhanced';
 import PaymentManagement from '@/components/admin/PaymentManagement';
-import GroupManagement from '@/components/admin/GroupManagementEnhanced';
 import AdminDashboard from '@/components/admin/AdminDashboard';
 import AuditLogs from '@/components/admin/AuditLogs';
 
@@ -73,7 +72,7 @@ const AdminPanel = () => {
 
       <div className="container mx-auto px-4 py-8">
         <Tabs defaultValue="dashboard" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="dashboard">
               <Shield className="h-4 w-4 mr-2" />
               Dashboard
@@ -89,10 +88,6 @@ const AdminPanel = () => {
             <TabsTrigger value="payments">
               <DollarSign className="h-4 w-4 mr-2" />
               Pagamentos
-            </TabsTrigger>
-            <TabsTrigger value="groups">
-              <Users className="h-4 w-4 mr-2" />
-              Grupos
             </TabsTrigger>
             <TabsTrigger value="logs">
               <Shield className="h-4 w-4 mr-2" />
@@ -114,10 +109,6 @@ const AdminPanel = () => {
 
           <TabsContent value="payments">
             <PaymentManagement />
-          </TabsContent>
-
-          <TabsContent value="groups">
-            <GroupManagement />
           </TabsContent>
 
           <TabsContent value="logs">
