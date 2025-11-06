@@ -414,11 +414,11 @@ const Dashboard = () => {
                       <ClipboardList className="h-5 w-5 mr-2" />
                       Relatórios
                     </Button>
-                    <Button variant="ghost" className="justify-start" onClick={() => handleEmergencyContact('police')}>
+                    <Button variant="ghost" className="justify-start" onClick={() => handleSelectView('police')}>
                       <ShieldAlert className="h-5 w-5 mr-2" />
                       Polícia
                     </Button>
-                    <Button variant="ghost" className="justify-start" onClick={() => handleEmergencyContact('ambulance')}>
+                    <Button variant="ghost" className="justify-start" onClick={() => handleSelectView('ambulance')}>
                       <Ambulance className="h-5 w-5 mr-2" />
                       Ambulância
                     </Button>
@@ -453,12 +453,8 @@ const Dashboard = () => {
           />
         )}
 
-        {activeView === 'chat' && user && (
-          <ChatInterface
-            currentUserId={user.id}
-            recipientId={selectedChatUserId || ''}
-            recipientProfile={null}
-          />
+        {activeView === 'chat' && (
+          <ChatInterface />
         )}
 
         {activeView === 'cameras' && (
