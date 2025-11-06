@@ -42,11 +42,11 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
   useEffect(() => {
     const markAsRead = async () => {
       const unreadMessages = messages.filter(
-        m => m.receiver_id === currentUserId && 
-        m.sender_id === recipientId && 
+        m => m.receiver_id === currentUserId &&
+        m.sender_id === recipientId &&
         !m.read_at
       );
-      
+
       if (unreadMessages.length > 0) {
         const messageIds = unreadMessages.map(m => m.id);
         await supabase
@@ -75,7 +75,7 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
         async (payload) => {
           console.log("New message received:", payload);
           const msg = payload.new as Message;
-          
+
           if (
             (msg.sender_id === recipientId && msg.receiver_id === currentUserId) ||
             (msg.sender_id === currentUserId && msg.receiver_id === recipientId)
@@ -104,7 +104,7 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
         },
         (payload) => {
           const updatedMsg = payload.new as Message;
-          setMessages((prev) => 
+          setMessages((prev) =>
             prev.map(m => m.id === updatedMsg.id ? updatedMsg : m)
           );
         }
@@ -123,19 +123,20 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
   }, [messages]);
 
   const loadMessages = useCallback(async () => {
-    console.log("Loading messages between:", currentUserId, "and", recipientId);
+    console.log("📥 Carregando mensagens entre:", currentUserId, "e", recipientId);
+
     const { data, error } = await supabase
       .from("messages")
       .select("*")
-      .or(
-        `and(sender_id.eq.${currentUserId},receiver_id.eq.${recipientId}),and(sender_id.eq.${recipientId},receiver_id.eq.${currentUserId})`
-      )
-      .eq("is_group", false) // Ensure only direct messages are loaded
+      .eq("is_group", false)
+      .or(`and(sender_id.eq.${currentUserId},receiver_id.eq.${recipientId}),and(sender_id.eq.${recipientId},receiver_id.eq.${currentUserId})`)
       .order("created_at", { ascending: true });
 
-    console.log("Messages loaded:", data?.length || 0, "Error:", error);
+    console.log("📊 Mensagens carregadas:", data?.length || 0, "Erro:", error);
+    if (error) console.error("❌ Erro ao carregar mensagens:", error);
 
     if (data) {
+      console.log("✅ Mensagens definidas:", data.length);
       setMessages(data);
     }
   }, [currentUserId, recipientId]);
@@ -159,44 +160,85 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
 
     setSending(true);
     try {
+      // Validar autenticação
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log('🔐 Validação de sessão:', {
+        sessionExists: !!session,
+        sessionUserId: session?.user?.id,
+        currentUserId,
+        recipientId,
+        match: session?.user?.id === currentUserId
+      });
+
+      if (!session || session.user.id !== currentUserId) {
+        throw new Error('Sessão inválida. Por favor, faça login novamente.');
+      }
+
       // Verifica se a mensagem já existe para evitar duplicação
-      const existingMessage = messages.find(m => 
-        m.sender_id === currentUserId && 
+      const existingMessage = messages.find(m =>
+        m.sender_id === currentUserId &&
         m.content === messageContent &&
         Date.now() - new Date(m.created_at).getTime() < 5000 // últimos 5 segundos
       );
-      
+
       if (existingMessage) {
         throw new Error('Aguarde alguns segundos antes de enviar a mesma mensagem.');
       }
 
-      console.log('Enviando mensagem...');
+      const messageData = {
+        sender_id: currentUserId,
+        receiver_id: recipientId,
+        content: messageContent,
+        message_type: "text",
+        is_group: false,
+      };
+
+      console.log('📤 Enviando mensagem:', messageData);
       const { data, error } = await supabase
         .from("messages")
-        .insert({
-          sender_id: currentUserId,
-          receiver_id: recipientId,
-          content: messageContent,
-          message_type: "text",
-          is_group: false, // Always false for direct messages
-        })
+        .insert(messageData)
         .select();
 
+      console.log('📨 Resposta completa do Supabase:', { data, error });
+
       if (error) {
-        console.error("Supabase error details:", error); // Log do erro completo
-        throw error; // Lança o erro para ser capturado pelo catch
+        console.error('❌ ERRO DETALHADO DO SUPABASE:', {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint,
+          fullError: JSON.stringify(error, null, 2)
+        });
+
+        if (error.code === '23503') {
+          throw new Error('Usuário não encontrado.');
+        } else if (error.code === '42501') {
+          throw new Error('Você não tem permissão para enviar mensagens.');
+        }
+        throw error;
       }
 
       if (data && data.length > 0) {
+        console.log('✅ Mensagem enviada com sucesso!', data[0]);
         setMessages((prev) => (prev.some(m => m.id === data[0].id) ? prev : [...prev, data[0]]));
       }
       setNewMessage("");
       scrollToBottom();
     } catch (error: unknown) {
-      console.error("Error sending message:", error); // Adicionado log detalhado aqui
+      console.error("❌ ERRO CAPTURADO NO CATCH:", {
+        errorType: typeof error,
+        errorMessage: (error as any)?.message,
+        errorCode: (error as any)?.code,
+        errorDetails: (error as any)?.details,
+        fullError: JSON.stringify(error, null, 2)
+      });
+
+      const errorMessage = mapErrorToUserMessage(error);
+      console.error('📢 Mensagem exibida ao usuário:', errorMessage);
+
       toast({
         title: "Erro ao enviar mensagem",
-        description: mapErrorToUserMessage(error),
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
