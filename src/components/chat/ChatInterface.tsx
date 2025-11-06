@@ -7,6 +7,7 @@ import { ChatMessages } from "./ChatMessages";
 import { MessageCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { mapErrorToUserMessage } from "@/lib/errorHandler";
+import { useMessageNotifications } from "@/hooks/useMessageNotifications";
 
 interface UserProfile {
   id: string;
@@ -21,6 +22,9 @@ export const ChatInterface = () => {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [selectedUserProfile, setSelectedUserProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Enable message notifications
+  useMessageNotifications(user?.id);
 
   useEffect(() => {
     const initializeChat = async () => {
