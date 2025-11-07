@@ -4,18 +4,21 @@ import React from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
-  Camera,
   Bell,
-  ShieldAlert,
-  UserRound,
-  MessageCircle,
-  MapPin,
-  ClipboardList,
-  Ambulance,
   ArrowLeft,
-  Wrench, // Changed from Tool to Wrench
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+// Custom icon component that can render images or lucide icons
+const CustomIcon = ({ src, icon: Icon, className }: { src?: string; icon?: React.ComponentType<any>; className?: string }) => {
+  if (src) {
+    return <img src={src} alt="" className={cn("h-12 w-12", className)} />;
+  }
+  if (Icon) {
+    return <Icon className={className} />;
+  }
+  return null;
+};
 
 interface DashboardHomeProps {
   onSOSAlert: () => void;
@@ -35,7 +38,7 @@ const DashboardHome = ({
   const cards = [
     {
       id: 'cameras',
-      icon: Camera,
+      iconSrc: '/img/icones/cameras.png',
       title: 'Câmeras',
       description: 'Visualizar câmeras próximas',
       color: 'text-blue-500',
@@ -43,7 +46,7 @@ const DashboardHome = ({
     },
     {
       id: 'utilities', // New card for Utilities
-      icon: Wrench, // Changed from Tool to Wrench
+      iconSrc: '/img/icones/utilidades.png',
       title: 'Utilidades',
       description: 'Contatos de emergência',
       color: 'text-teal-500',
@@ -51,7 +54,7 @@ const DashboardHome = ({
     },
     {
       id: 'sos',
-      icon: Bell,
+      iconSrc: '/img/icones/sos.png',
       title: 'SOS',
       description: 'Alerta de emergência',
       color: 'text-white',
@@ -61,7 +64,7 @@ const DashboardHome = ({
     },
     {
       id: 'police',
-      icon: ShieldAlert,
+      iconSrc: '/img/icones/policia.png',
       title: 'Polícia',
       description: 'Contato de emergência',
       color: 'text-blue-600',
@@ -69,7 +72,7 @@ const DashboardHome = ({
     },
     {
       id: 'profile',
-      icon: UserRound,
+      iconSrc: '/img/icones/perfil.png',
       title: 'Meu Perfil',
       description: 'Gerenciar suas informações',
       color: 'text-gray-600',
@@ -77,7 +80,7 @@ const DashboardHome = ({
     },
     {
       id: 'chat',
-      icon: MessageCircle,
+      iconSrc: '/img/icones/conversas.png',
       title: 'Conversas',
       description: 'Chat em tempo real',
       color: 'text-yellow-500',
@@ -85,7 +88,7 @@ const DashboardHome = ({
     },
     {
       id: 'map',
-      icon: MapPin,
+      iconSrc: '/img/icones/mapa.png',
       title: 'Mapa',
       description: 'Ver pontos de monitoramento',
       color: 'text-purple-500',
@@ -93,7 +96,7 @@ const DashboardHome = ({
     },
     {
       id: 'reports',
-      icon: ClipboardList,
+      iconSrc: '/img/icones/relatorios.png',
       title: 'Relatórios',
       description: 'Enviar ocorrências e ajuda',
       color: 'text-blue-700',
@@ -101,7 +104,7 @@ const DashboardHome = ({
     },
     {
       id: 'ambulance',
-      icon: Ambulance,
+      iconSrc: '/img/icones/ambulancia.png',
       title: 'Ambulância',
       description: 'Contato de emergência',
       color: 'text-green-600',
@@ -127,7 +130,7 @@ const DashboardHome = ({
             "p-3 rounded-full mb-2",
             card.id === 'sos' ? 'bg-white/20' : 'bg-muted'
           )}>
-            <card.icon className={cn("h-8 w-8", card.color)} />
+            <CustomIcon src={card.iconSrc} icon={card.icon} className={cn("h-12 w-12", card.color)} />
           </div>
           <p className="font-semibold text-lg">{card.title}</p>
           <p className="text-xs text-muted-foreground mt-1">
