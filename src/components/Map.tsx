@@ -37,11 +37,11 @@ const Map = () => {
         "&copy; <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a> contributors",
     }).addTo(map);
 
-    // Fix para ícones padrão do Leaflet (usa assets do próprio pacote)
+    // Fix para ícones padrão do Leaflet (usa assets locais)
     const icon = L.icon({
-      iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-      iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-      shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+      iconUrl: '/marker-icon.png',
+      iconRetinaUrl: '/marker-icon-2x.png',
+      shadowUrl: '/marker-shadow.png',
       iconSize: [25, 41],
       iconAnchor: [12, 41],
       popupAnchor: [1, -34],
