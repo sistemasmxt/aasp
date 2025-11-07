@@ -1,0 +1,19 @@
+services:
+  aasp:
+    container_name: aasp_app
+    build: .
+    restart: always
+    ports:
+      - "8080:80"
+    # networks:
+    #   - traefik_proxy
+    # labels:
+    #   - "traefik.enable=true"
+    #   - "traefik.http.routers.aasp.rule=Host(`aasp.app.br`)"
+    #   - "traefik.http.routers.aasp.entrypoints=websecure"
+    #   - "traefik.http.routers.aasp.tls.certresolver=cloudflare"
+    #   - "traefik.http.services.aasp.loadbalancer.server.port=8080"
+
+# networks:
+#   traefik_proxy:
+#     external: true
