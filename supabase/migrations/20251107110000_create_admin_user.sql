@@ -9,7 +9,7 @@ BEGIN
     -- Check if admin user exists
     SELECT id INTO admin_user_id
     FROM auth.users
-    WHERE email = 'admin@aasp.com';
+    WHERE email = 'admin@aasp.app.br';
 
     -- If admin user doesn't exist, create it
     IF admin_user_id IS NULL THEN

@@ -79,7 +79,7 @@ const AdminLogin = () => {
         // If user not found, try to create them (for the hardcoded admin)
         if (authError.message.includes('invalid login credentials') || authError.message.includes('user not found')) {
           // This is a special case for the initial hardcoded admin setup
-          if (validatedData.email === 'admin@aasp.com' && validatedData.password === 'admin123') {
+          if (validatedData.email === 'admin@aasp.app.br' && validatedData.password === 'admin123') {
             const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
               email: validatedData.email,
               password: validatedData.password,
@@ -185,7 +185,7 @@ const AdminLogin = () => {
                 id="email"
                 name="email"
                 type="email"
-                placeholder="admin@aasp.com"
+                placeholder="admin@aasp.app.br"
                 className="pl-10"
                 autoComplete="email"
                 required
