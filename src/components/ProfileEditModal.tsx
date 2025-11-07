@@ -351,114 +351,63 @@ export const ProfileEditModal = ({ profile, onProfileUpdate, open, onOpenChange 
     }
   };
 
-  const checkAvatarsBucket = async (): Promise<void> => {
-    try {
-      console.log('📦 Checking if avatars bucket exists...');
-
-      // Try to list buckets to check if avatars exists
-      const { data: buckets, error: listError } = await supabase.storage.listBuckets();
-
-      if (listError) {
-        console.error('❌ Error listing buckets:', listError);
-        throw new Error('Não foi possível verificar os buckets de storage. Verifique suas permissões.');
-      }
-
-      const avatarsBucket = buckets?.find(bucket => bucket.name === 'avatars');
-
-      if (!avatarsBucket) {
-        throw new Error('Bucket "avatars" não encontrado. Crie o bucket no painel do Supabase Storage com o nome "avatars" e torne-o público.');
-      }
-
-      console.log('✅ Avatars bucket exists');
-    } catch (error) {
-      console.error('❌ Bucket check error:', error);
-      throw error;
-    }
-  };
-
-  const createStorageFolders = async (): Promise<void> => {
-    try {
-      console.log('📁 Creating storage folders...');
-
-      // First ensure the bucket exists
-      await checkAvatarsBucket();
-
-      // Create a temporary empty file to establish folder structure
-      const tempFileName = `.folder_placeholder_${Date.now()}.txt`;
-      const tempFilePath = `${tempFileName}`;
-
-      // Create empty blob for folder creation
-      const emptyBlob = new Blob([''], { type: 'text/plain' });
-      const tempFile = new File([emptyBlob], tempFileName, { type: 'text/plain' });
-
-      const { error } = await supabase.storage
-        .from('avatars')
-        .upload(tempFilePath, tempFile, {
-          cacheControl: '3600',
-          upsert: true,
-          contentType: 'text/plain'
-        });
-
-      if (error) {
-        console.warn('Folder creation warning (might already exist):', error.message);
-      } else {
-        // Clean up the temporary file
-        await supabase.storage
-          .from('avatars')
-          .remove([tempFilePath]);
-        console.log('✅ Storage folders created successfully');
-      }
-    } catch (error) {
-      console.warn('⚠️ Folder creation failed (continuing anyway):', error);
-    }
-  };
-
   const uploadAvatar = async (): Promise<string | null> => {
     if (!avatarFile || !user) return profile?.avatar_url || null;
 
     try {
-      console.log('Uploading file to local server:', {
+      console.log('📤 Uploading avatar to Supabase Storage:', {
         size: avatarFile.size,
         type: avatarFile.type,
         name: avatarFile.name
       });
 
-      // Create FormData for upload
-      const formData = new FormData();
-      formData.append('avatar', avatarFile, avatarFile.name); // Ensure filename is included
-      formData.append('userId', user.id);
-
-      console.log('FormData contents:', {
-        hasAvatar: formData.has('avatar'),
-        hasUserId: formData.has('userId'),
-        userId: user.id
-      });
-
-      // Upload to production server
-      const response = await fetch('https://aasp.app.br/upload.php', {
-        method: 'POST',
-        body: formData,
-      });
-
-      console.log('Response status:', response.status);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Response error:', errorText);
-        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+      // Delete old avatar if exists
+      if (profile?.avatar_url) {
+        const oldPath = profile.avatar_url.split('/avatars/')[1];
+        if (oldPath) {
+          const { error: deleteError } = await supabase.storage
+            .from('avatars')
+            .remove([oldPath]);
+          
+          if (deleteError) {
+            console.warn('⚠️ Error deleting old avatar:', deleteError);
+          } else {
+            console.log('✅ Old avatar deleted');
+          }
+        }
       }
 
-      const result = await response.json();
-      console.log('Parsed response:', result);
+      // Create file path: {userId}/{timestamp}.jpg
+      const timestamp = Date.now();
+      const fileExtension = avatarFile.name.split('.').pop() || 'jpg';
+      const filePath = `${user.id}/${timestamp}.${fileExtension}`;
 
-      if (!result.success) {
-        throw new Error(result.error || 'Falha no upload');
+      // Upload to Supabase Storage
+      const { data, error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, avatarFile, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType: avatarFile.type
+        });
+
+      if (uploadError) {
+        console.error('❌ Upload error:', uploadError);
+        throw new Error(`Erro no upload: ${uploadError.message}`);
       }
 
-      console.log('Upload successful, path:', result.path);
-      return result.path;
+      console.log('✅ Upload successful:', data);
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      console.log('✅ Public URL generated:', publicUrl);
+      return publicUrl;
+
     } catch (error) {
-      console.error('Avatar upload error:', error);
+      console.error('❌ Avatar upload error:', error);
       throw error;
     }
   };
