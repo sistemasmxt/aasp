@@ -22,3 +22,12 @@
 2. Garantir que a paginação seja resetada quando necessário
 3. Melhorar o feedback visual dos alertas resolvidos
 4. Testar todas as funcionalidades com dados reais
+
+## ✅ Deploy e Correções Recentes
+- [x] Projeto colocado em modo de produção (build executado)
+- [x] Deploy para VPS aasp.app.br concluído
+- [x] Arquivos copiados para /var/www/aasp/build
+- [x] Ícones do mapa corrigidos para usar assets locais
+- [x] Notificação de som para mensagens de chat adicionada (sounds/msg.mp3)
+- [x] Site atualizado e funcionando (HTTP 200 OK)
+- [x] Mudanças commitadas no git
