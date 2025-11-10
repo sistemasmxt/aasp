@@ -46,13 +46,11 @@ const AdminLogin = () => {
           .single();
 
         if (roles && !rolesError) {
-          sessionStorage.setItem('adminLoggedIn', 'true');
           navigate("/admin", { replace: true });
           return;
         }
       }
     }
-    sessionStorage.removeItem('adminLoggedIn'); // Ensure it's cleared if not admin
     setIsLoading(false);
   };
 
@@ -76,49 +74,6 @@ const AdminLogin = () => {
       });
 
       if (authError) {
-        // If user not found, try to create them (for the hardcoded admin)
-        if (authError.message.includes('invalid login credentials') || authError.message.includes('user not found')) {
-          // This is a special case for the initial hardcoded admin setup
-          if (validatedData.email === 'admin@aasp.com' && validatedData.password === 'admin123') {
-            const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-              email: validatedData.email,
-              password: validatedData.password,
-              options: {
-                data: {
-                  full_name: 'Administrador',
-                  phone: '', // Or a default phone number
-                }
-              }
-            });
-
-            if (signUpError) throw signUpError;
-
-            if (signUpData.user) {
-              // Ensure profile exists (handle_new_user trigger should do this)
-              // Add admin role
-              const { error: roleError } = await supabase
-                .from('user_roles')
-                .insert({ user_id: signUpData.user.id, role: 'admin' });
-
-              if (roleError) throw roleError;
-
-              // Sign in the newly created admin
-              const { error: signInAfterSignUpError } = await supabase.auth.signInWithPassword({
-                email: validatedData.email,
-                password: validatedData.password
-              });
-              if (signInAfterSignUpError) throw signInAfterSignUpError;
-
-              sessionStorage.setItem('adminLoggedIn', 'true');
-              toast({
-                title: "Login administrativo realizado com sucesso!",
-                description: "Bem-vindo ao Painel Central"
-              });
-              navigate("/admin", { replace: true });
-              return;
-            }
-          }
-        }
         throw authError;
       }
 
@@ -132,7 +87,6 @@ const AdminLogin = () => {
           .single();
 
         if (roles && !rolesError) {
-          sessionStorage.setItem('adminLoggedIn', 'true');
           toast({
             title: "Login administrativo realizado com sucesso!",
             description: "Bem-vindo ao Painel Central"

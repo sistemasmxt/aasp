@@ -11,14 +11,15 @@ import CameraManagement from '@/components/admin/CameraManagementEnhanced';
 import PaymentManagement from '@/components/admin/PaymentManagement';
 import AdminDashboard from '@/components/admin/AdminDashboard';
 import AuditLogs from '@/components/admin/AuditLogs';
+import { supabase } from '@/integrations/supabase/client';
 
 const AdminPanel = () => {
   const { isAdmin, loading } = useAdmin();
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const handleLogout = () => {
-    sessionStorage.removeItem('adminLoggedIn');
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     toast({
       title: "Logout realizado",
       description: "Você foi desconectado do painel administrativo"
