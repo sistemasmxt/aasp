@@ -1,11 +1,18 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+<<<<<<< HEAD
 import { Shield, Camera, Users, Bell, MapPin, MessageCircle, Heart, EyeOff, CloudRain } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import heroImage from "@/assets/hero-security.jpg";
 import logo from "@/img/logo.png";
 import logoApple from "/img/logo-apple.png";
 import logoPlay from "/img/logo-play.png";
+=======
+import { Shield, Camera, Users, Bell, MapPin, MessageCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import heroImage from "@/assets/hero-security.jpg";
+import logo from "@/img/logo.png";
+>>>>>>> 9b6de0e7e6e5d93dd56ea40da1c85ad3078bb022
 const Landing = () => {
   const navigate = useNavigate();
   const features = [{
@@ -32,6 +39,7 @@ const Landing = () => {
     icon: MapPin,
     title: "Geolocalização",
     description: "Mapa interativo mostrando pontos de monitoramento"
+<<<<<<< HEAD
   }, {
     icon: Heart,
     title: "SOS Pet",
@@ -51,6 +59,15 @@ const Landing = () => {
     period: "/mês",
     featured: true,
     features: ["Acesso ao chat da comunidade", "Alertas de emergência", "Câmeras particulares ilimitadas", "Prioridade em alertas", "Suporte 24/7", "Histórico de eventos 90 dias", "SOS Pet", "Denúncias Anônimas", "Situação de Emergência", "Até 4 pessoas no plano"]
+=======
+  }];
+  const plans = [{
+    name: "Premium",
+    price: "R$ 140,00",
+    period: "/mês",
+    featured: true,
+    features: ["Acesso ao chat da comunidade", "Alertas de emergência", "Câmeras particulares ilimitadas", "Prioridade em alertas", "Suporte 24/7", "Histórico de eventos 90 dias"]
+>>>>>>> 9b6de0e7e6e5d93dd56ea40da1c85ad3078bb022
   }];
   return <div className="min-h-screen bg-background">
       {/* Header */}
@@ -219,6 +236,7 @@ const Landing = () => {
               </ul>
             </div>
           </div>
+<<<<<<< HEAD
           <div className="border-t border-border mt-12 pt-8">
             <div className="flex flex-col items-center gap-4">
               <p className="text-muted-foreground text-center">
@@ -232,6 +250,10 @@ const Landing = () => {
             <div className="text-center text-muted-foreground mt-8">
               <p>&copy; 2025 AASP - Todos os direitos reservados | www.aasp.app.br</p>
             </div>
+=======
+          <div className="border-t border-border mt-12 pt-8 text-center text-muted-foreground">
+            <p>&copy; 2025 AASP - Todos os direitos reservados | www.aasp.app.br</p>
+>>>>>>> 9b6de0e7e6e5d93dd56ea40da1c85ad3078bb022
           </div>
         </div>
       </footer>

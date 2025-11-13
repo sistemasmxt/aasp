@@ -10,7 +10,11 @@ import {
 import { cn } from '@/lib/utils';
 
 // Custom icon component that can render images or lucide icons
+<<<<<<< HEAD
 const CustomIcon = ({ src, icon: Icon, className }: { src?: string; icon?: React.ComponentType<{ className?: string }>; className?: string }) => {
+=======
+const CustomIcon = ({ src, icon: Icon, className }: { src?: string; icon?: React.ComponentType<any>; className?: string }) => {
+>>>>>>> 9b6de0e7e6e5d93dd56ea40da1c85ad3078bb022
   if (src) {
     return <img src={src} alt="" className={cn("h-12 w-12", className)} />;
   }

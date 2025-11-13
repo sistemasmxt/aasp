@@ -87,9 +87,15 @@ create policy "Users can insert their own messages"
             or
             -- Ou se for uma mensagem de grupo e o usuário for membro do grupo
             (is_group = true and exists (
+<<<<<<< HEAD
                 select 1 
                 from group_members 
                 where user_id = auth.uid() 
+=======
+                select 1
+                from public.group_members
+                where user_id = auth.uid()
+>>>>>>> 9b6de0e7e6e5d93dd56ea40da1c85ad3078bb022
                 and group_id = messages.group_id
             ))
         )
@@ -102,11 +108,19 @@ create policy "Users can view messages they sent or received"
         auth.uid() = sender_id
         or auth.uid() = receiver_id
         or (
+<<<<<<< HEAD
             is_group = true 
             and exists (
                 select 1 
                 from group_members 
                 where user_id = auth.uid() 
+=======
+            is_group = true
+            and exists (
+                select 1
+                from public.group_members
+                where user_id = auth.uid()
+>>>>>>> 9b6de0e7e6e5d93dd56ea40da1c85ad3078bb022
                 and group_id = messages.group_id
             )
         )
