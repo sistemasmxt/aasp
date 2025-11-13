@@ -1,9 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Shield, Camera, Users, Bell, MapPin, MessageCircle } from "lucide-react";
+import { Shield, Camera, Users, Bell, MapPin, MessageCircle, Heart, EyeOff, CloudRain } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import heroImage from "@/assets/hero-security.jpg";
 import logo from "@/img/logo.png";
+import logoApple from "/img/logo-apple.png";
+import logoPlay from "/img/logo-play.png";
 const Landing = () => {
   const navigate = useNavigate();
   const features = [{
@@ -30,13 +32,25 @@ const Landing = () => {
     icon: MapPin,
     title: "Geolocalização",
     description: "Mapa interativo mostrando pontos de monitoramento"
+  }, {
+    icon: Heart,
+    title: "SOS Pet",
+    description: "Sistema dedicado para localizar pets desaparecidos ou ajudar animais abandonados na comunidade"
+  }, {
+    icon: EyeOff,
+    title: "Denúncias Anônimas",
+    description: "Plataforma segura para denúncias anônimas de crimes e irregularidades, protegendo sua identidade"
+  }, {
+    icon: CloudRain,
+    title: "Situação de Emergência",
+    description: "Alertas instantâneos sobre fenômenos naturais e situações de emergência que afetam a comunidade"
   }];
   const plans = [{
     name: "Premium",
-    price: "R$ 140,00",
+    price: "R$ 120,00",
     period: "/mês",
     featured: true,
-    features: ["Acesso ao chat da comunidade", "Alertas de emergência", "Câmeras particulares ilimitadas", "Prioridade em alertas", "Suporte 24/7", "Histórico de eventos 90 dias"]
+    features: ["Acesso ao chat da comunidade", "Alertas de emergência", "Câmeras particulares ilimitadas", "Prioridade em alertas", "Suporte 24/7", "Histórico de eventos 90 dias", "SOS Pet", "Denúncias Anônimas", "Situação de Emergência", "Até 4 pessoas no plano"]
   }];
   return <div className="min-h-screen bg-background">
       {/* Header */}
@@ -205,8 +219,19 @@ const Landing = () => {
               </ul>
             </div>
           </div>
-          <div className="border-t border-border mt-12 pt-8 text-center text-muted-foreground">
-            <p>&copy; 2025 AASP - Todos os direitos reservados | www.aasp.app.br</p>
+          <div className="border-t border-border mt-12 pt-8">
+            <div className="flex flex-col items-center gap-4">
+              <p className="text-muted-foreground text-center">
+                Disponível para dispositivos iOS e Android
+              </p>
+              <div className="flex gap-4">
+                <img src={logoApple} alt="Download na App Store" className="h-10 w-auto" />
+                <img src={logoPlay} alt="Download no Google Play" className="h-10 w-auto" />
+              </div>
+            </div>
+            <div className="text-center text-muted-foreground mt-8">
+              <p>&copy; 2025 AASP - Todos os direitos reservados | www.aasp.app.br</p>
+            </div>
           </div>
         </div>
       </footer>
