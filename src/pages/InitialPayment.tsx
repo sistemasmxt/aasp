@@ -4,8 +4,8 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, Loader2, ArrowLeft } from 'lucide-react';
-import QRCode from 'react-qr-code'; // Changed import to react-qr-code
+import { CheckCircle, Loader2, ArrowLeft, Copy } from 'lucide-react'; // Import Copy icon
+import QRCode from 'react-qr-code';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -93,6 +93,23 @@ const InitialPayment = () => {
     }
   };
 
+  const handleCopyPixKey = async () => {
+    try {
+      await navigator.clipboard.writeText(PIX_KEY);
+      toast({
+        title: "Chave PIX Copiada!",
+        description: "A chave foi copiada para a área de transferência.",
+      });
+    } catch (err) {
+      console.error('Failed to copy PIX key:', err);
+      toast({
+        title: "Erro ao copiar",
+        description: "Não foi possível copiar a chave PIX. Tente manualmente.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const pixPayload = `pix://payload?pixkey=${PIX_KEY}&amount=${INITIAL_PAYMENT_AMOUNT}&name=${encodeURIComponent(PIX_NAME)}`;
 
   if (authLoading || loading) {
@@ -136,7 +153,12 @@ const InitialPayment = () => {
                 <QRCode value={pixPayload} size={256} />
               </div>
               <p className="text-lg font-semibold text-foreground mt-4">Valor: R$ {INITIAL_PAYMENT_AMOUNT}</p>
-              <p className="text-sm text-muted-foreground">Chave PIX (CNPJ): {PIX_KEY}</p>
+              <div className="flex items-center justify-center gap-2 mt-1">
+                <p className="text-sm text-muted-foreground">Chave PIX (CNPJ): {PIX_KEY}</p>
+                <Button variant="ghost" size="icon" onClick={handleCopyPixKey} className="h-7 w-7">
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
               <p className="text-sm text-muted-foreground">Recebedor: {PIX_NAME}</p>
             </CardContent>
 
