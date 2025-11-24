@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { logAudit } from '@/lib/auditLogger';
 import * as LucideIcons from 'lucide-react';
+import { mapErrorToUserMessage } from '@/lib/errorHandler'; // Import mapErrorToUserMessage
 
 interface PublicUtilityContact {
   id: string;
@@ -177,9 +178,14 @@ const PublicUtilityContactsManagement = () => {
       });
       fetchContacts();
     } catch (error: any) {
+      let userMessage = mapErrorToUserMessage(error);
+      if (error.code === '23505' && error.message.includes('public_utility_contacts_name_key')) {
+        userMessage = 'Já existe um contato com este nome. Por favor, use um nome diferente.';
+      }
+
       toast({
         title: editingContact ? 'Erro ao atualizar contato' : 'Erro ao cadastrar contato',
-        description: error.message,
+        description: userMessage,
         variant: 'destructive',
       });
     }
@@ -208,7 +214,7 @@ const PublicUtilityContactsManagement = () => {
     } catch (error: any) {
       toast({
         title: 'Erro ao excluir contato',
-        description: error.message,
+        description: mapErrorToUserMessage(error),
         variant: 'destructive',
       });
     }
