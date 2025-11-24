@@ -1,20 +1,13 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-<<<<<<< HEAD
-import { Shield, Camera, Users, Bell, MapPin, MessageCircle, Heart, EyeOff, CloudRain } from "lucide-react";
+import { Shield, Camera, Users, Bell, MapPin, MessageCircle, Heart, EyeOff, AlertTriangle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import heroImage from "@/assets/hero-security.jpg";
 import logo from "@/img/logo.png";
-import logoApple from "/img/logo-apple.png";
-import logoPlay from "/img/logo-play.png";
-=======
-import { Shield, Camera, Users, Bell, MapPin, MessageCircle } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import heroImage from "@/assets/hero-security.jpg";
-import logo from "@/img/logo.png";
->>>>>>> 9b6de0e7e6e5d93dd56ea40da1c85ad3078bb022
+
 const Landing = () => {
   const navigate = useNavigate();
+
   const features = [{
     icon: Shield,
     title: "Segurança 24/7",
@@ -39,36 +32,28 @@ const Landing = () => {
     icon: MapPin,
     title: "Geolocalização",
     description: "Mapa interativo mostrando pontos de monitoramento"
-<<<<<<< HEAD
   }, {
     icon: Heart,
     title: "SOS Pet",
-    description: "Sistema dedicado para localizar pets desaparecidos ou ajudar animais abandonados na comunidade"
+    description: "Ajuda imediata para pets desaparecidos ou abandonados na comunidade"
   }, {
     icon: EyeOff,
     title: "Denúncias Anônimas",
-    description: "Plataforma segura para denúncias anônimas de crimes e irregularidades, protegendo sua identidade"
+    description: "Sistema seguro para denúncias confidenciais sem identificação"
   }, {
-    icon: CloudRain,
+    icon: AlertTriangle,
     title: "Situação de Emergência",
-    description: "Alertas instantâneos sobre fenômenos naturais e situações de emergência que afetam a comunidade"
+    description: "Alertas especiais para fenômenos naturais e situações críticas"
   }];
+
   const plans = [{
     name: "Premium",
     price: "R$ 120,00",
     period: "/mês",
     featured: true,
     features: ["Acesso ao chat da comunidade", "Alertas de emergência", "Câmeras particulares ilimitadas", "Prioridade em alertas", "Suporte 24/7", "Histórico de eventos 90 dias", "SOS Pet", "Denúncias Anônimas", "Situação de Emergência", "Até 4 pessoas no plano"]
-=======
   }];
-  const plans = [{
-    name: "Premium",
-    price: "R$ 140,00",
-    period: "/mês",
-    featured: true,
-    features: ["Acesso ao chat da comunidade", "Alertas de emergência", "Câmeras particulares ilimitadas", "Prioridade em alertas", "Suporte 24/7", "Histórico de eventos 90 dias"]
->>>>>>> 9b6de0e7e6e5d93dd56ea40da1c85ad3078bb022
-  }];
+
   return <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
@@ -236,27 +221,19 @@ const Landing = () => {
               </ul>
             </div>
           </div>
-<<<<<<< HEAD
-          <div className="border-t border-border mt-12 pt-8">
-            <div className="flex flex-col items-center gap-4">
-              <p className="text-muted-foreground text-center">
-                Disponível para dispositivos iOS e Android
-              </p>
+          <div className="border-t border-border mt-12 pt-8 text-center text-muted-foreground">
+            <div className="flex flex-col items-center gap-4 mb-4">
+              <p className="text-sm">Disponível para dispositivos iOS e Android</p>
               <div className="flex gap-4">
-                <img src={logoApple} alt="Download na App Store" className="h-10 w-auto" />
-                <img src={logoPlay} alt="Download no Google Play" className="h-10 w-auto" />
+                <img src="/img/logo-apple.png" alt="Download na App Store" className="h-10 w-auto" />
+                <img src="/img/logo-play.png" alt="Download no Google Play" className="h-10 w-auto" />
               </div>
             </div>
-            <div className="text-center text-muted-foreground mt-8">
-              <p>&copy; 2025 AASP - Todos os direitos reservados | www.aasp.app.br</p>
-            </div>
-=======
-          <div className="border-t border-border mt-12 pt-8 text-center text-muted-foreground">
             <p>&copy; 2025 AASP - Todos os direitos reservados | www.aasp.app.br</p>
->>>>>>> 9b6de0e7e6e5d93dd56ea40da1c85ad3078bb022
           </div>
         </div>
       </footer>
     </div>;
 };
+
 export default Landing;
