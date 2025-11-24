@@ -10,6 +10,7 @@ import Dashboard from "./pages/Dashboard";
 import AdminPanel from "./pages/AdminPanel";
 import AdminBackend from "./pages/AdminBackend";
 import NotFound from "./pages/NotFound";
+import InitialPayment from "./pages/InitialPayment"; // Import the new page
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { PWAInstallPrompt } from "./components/PWAInstallPrompt";
 
@@ -26,6 +27,7 @@ const App = () => (
           <Route path="/" element={<Landing />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/admin-login" element={<AdminLogin />} />
+          <Route path="/initial-payment" element={<InitialPayment />} /> {/* New route for initial payment */}
           <Route path="/dashboard" element={
             <ProtectedRoute>
               <Dashboard />
