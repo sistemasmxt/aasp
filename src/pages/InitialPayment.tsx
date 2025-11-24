@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, Loader2, ArrowLeft } from 'lucide-react';
-import { QRCode } from 'qrcode.react'; // Corrected import here
+import QRCode from 'qrcode.react'; // Reverted import here
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
