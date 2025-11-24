@@ -98,7 +98,7 @@ export default defineConfig(({ mode }) => ({
             src: "/maskable-icon-512x512.png",
             sizes: "512x512",
             type: "image/png",
-            purpose: "maskable"
+            purpose": "maskable"
           }
         ],
         categories: ["security", "utilities", "productivity"],
@@ -112,5 +112,8 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
     dedupe: ["react", "react-dom", "react/jsx-runtime"],
+  },
+  optimizeDeps: {
+    exclude: ['qrcode.react'], // Excluir qrcode.react da otimização de dependências do Vite
   },
 }));
