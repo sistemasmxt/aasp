@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, Loader2, ArrowLeft } from 'lucide-react';
-import * as QRCodeModule from 'qrcode.react'; // Changed import here
+import QRCode from 'qrcode.react'; // Changed import here
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -132,7 +132,7 @@ const InitialPayment = () => {
           <div className="space-y-6">
             <CardContent className="p-0">
               <div className="bg-white p-4 rounded-lg inline-block">
-                <QRCodeModule.QRCode value={pixPayload} size={256} level="H" />
+                <QRCode value={pixPayload} size={256} level="H" />
               </div>
               <p className="text-lg font-semibold text-foreground mt-4">Valor: R$ {INITIAL_PAYMENT_AMOUNT}</p>
               <p className="text-sm text-muted-foreground">Chave PIX (CNPJ): {PIX_KEY}</p>
