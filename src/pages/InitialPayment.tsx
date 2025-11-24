@@ -69,12 +69,18 @@ const InitialPayment = () => {
     if (!user) return;
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ initial_payment_status: 'pending' })
-        .eq('id', user.id);
+      // Call the Edge Function instead of direct Supabase update
+      const { data, error } = await supabase.functions.invoke('notify-admin-payment', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${await supabase.auth.getSession().then(s => s.data.session?.access_token)}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId: user.id }), // Pass user ID if needed, though function gets it from JWT
+      });
 
       if (error) throw error;
+      if (data && data.error) throw new Error(data.error); // Handle errors from the function's response
 
       setPaymentStatus('pending');
       toast({
@@ -85,7 +91,7 @@ const InitialPayment = () => {
       console.error("Error notifying admin:", error.message);
       toast({
         title: "Erro ao notificar administrador",
-        description: "Tente novamente mais tarde.",
+        description: error.message || "Tente novamente mais tarde.",
         variant: "destructive",
       });
     } finally {
