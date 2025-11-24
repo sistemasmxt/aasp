@@ -11,7 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import logo from '@/img/logo.png';
 
-const PIX_KEY = "61999999999"; // CNPJ
+const PIX_KEY = "61959355000105"; // CNPJ atualizado
 const PIX_NAME = "ASSOCIACAO DE APOIO A SEGURANCA PUBLICA";
 const INITIAL_PAYMENT_AMOUNT = "132.00"; // R$132,00
 
