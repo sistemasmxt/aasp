@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Users, Shield, ShieldOff, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Users, Shield, ShieldOff, Pencil, Plus, Trash2, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,6 +18,8 @@ interface Profile {
   phone: string | null;
   address: string | null;
   created_at: string;
+  is_approved: boolean;
+  initial_payment_status: 'unpaid' | 'pending' | 'paid';
 }
 
 interface UserRole {
@@ -112,6 +114,8 @@ const UserManagementEnhanced = () => {
             full_name: createForm.full_name,
             phone: createForm.phone || null,
             address: createForm.address || null,
+            is_approved: createForm.is_admin, // Admins are approved by default
+            initial_payment_status: createForm.is_admin ? 'paid' : 'unpaid',
           })
           .eq('id', user.id);
 
@@ -130,7 +134,7 @@ const UserManagementEnhanced = () => {
           action: 'CREATE',
           table_name: 'users',
           record_id: user.id,
-          details: { email: createForm.email, full_name: createForm.full_name },
+          details: { email: createForm.email, full_name: createForm.full_name, is_admin: createForm.is_admin },
         });
 
         toast({
@@ -257,6 +261,54 @@ const UserManagementEnhanced = () => {
     }
   };
 
+  const handleToggleApproval = async (profile: Profile, isCurrentlyApproved: boolean) => {
+    try {
+      const newApprovalStatus = !isCurrentlyApproved;
+      const newPaymentStatus = newApprovalStatus ? 'paid' : 'unpaid';
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({ is_approved: newApprovalStatus, initial_payment_status: newPaymentStatus })
+        .eq('id', profile.id);
+
+      if (error) throw error;
+
+      // Also update the initial payment record if it exists
+      if (newApprovalStatus) {
+        const { data: initialPayment, error: paymentError } = await supabase
+          .from('payments')
+          .update({ status: 'paid', paid_at: new Date().toISOString() })
+          .eq('user_id', profile.id)
+          .eq('payment_type', 'initial')
+          .eq('status', 'pending'); // Only update pending initial payments
+        
+        if (paymentError) console.error("Error updating initial payment status:", paymentError);
+      }
+
+
+      await logAudit({
+        action: 'UPDATE',
+        table_name: 'users',
+        record_id: profile.id,
+        details: { is_approved: newApprovalStatus, initial_payment_status: newPaymentStatus },
+      });
+
+      toast({
+        title: 'Status de Aprovação Atualizado',
+        description: `Usuário ${profile.full_name} foi ${newApprovalStatus ? 'aprovado' : 'desaprovado'}.`,
+        variant: newApprovalStatus ? 'success' : 'destructive',
+      });
+
+      fetchProfiles(); // Re-fetch profiles to update UI
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao atualizar aprovação',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
   const handleDeleteUser = async (userId: string) => {
     if (!confirm('Tem certeza que deseja excluir este usuário? Esta ação não pode ser desfeita.')) return;
 
@@ -365,7 +417,7 @@ const UserManagementEnhanced = () => {
                   checked={createForm.is_admin}
                   onCheckedChange={(checked) => setCreateForm({ ...createForm, is_admin: checked as boolean })}
                 />
-                <Label htmlFor="is_admin">Definir como administrador</Label>
+                <Label htmlFor="is_admin">Definir como administrador (aprova acesso automaticamente)</Label>
               </div>
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={() => setCreateDialogOpen(false)}>
@@ -429,6 +481,7 @@ const UserManagementEnhanced = () => {
               <TableHead>Endereço</TableHead>
               <TableHead>Data Cadastro</TableHead>
               <TableHead>Papel</TableHead>
+              <TableHead>Aprovação</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -446,6 +499,11 @@ const UserManagementEnhanced = () => {
                       {isAdmin ? 'Admin' : 'Usuário'}
                     </Badge>
                   </TableCell>
+                  <TableCell>
+                    <Badge variant={profile.is_approved ? 'success' : (profile.initial_payment_status === 'pending' ? 'warning' : 'destructive')}>
+                      {profile.is_approved ? 'Aprovado' : (profile.initial_payment_status === 'pending' ? 'Pagamento Pendente' : 'Não Aprovado')}
+                    </Badge>
+                  </TableCell>
                   <TableCell className="text-right space-x-2">
                     <Button variant="ghost" size="sm" onClick={() => handleEditUser(profile)}>
                       <Pencil className="h-4 w-4" />
@@ -459,6 +517,18 @@ const UserManagementEnhanced = () => {
                         <ShieldOff className="h-4 w-4 text-destructive" />
                       ) : (
                         <Shield className="h-4 w-4 text-primary" />
+                      )}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleToggleApproval(profile, profile.is_approved)}
+                      disabled={profile.initial_payment_status === 'unpaid' && !profile.is_approved} // Disable if unpaid and not approved
+                    >
+                      {profile.is_approved ? (
+                        <XCircle className="h-4 w-4 text-destructive" />
+                      ) : (
+                        <CheckCircle className="h-4 w-4 text-success" />
                       )}
                     </Button>
                     <Button

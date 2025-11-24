@@ -65,7 +65,24 @@ const Auth = () => {
       }
     }) => {
       if (session) {
-        navigate("/dashboard");
+        // If user is logged in, check if they are approved
+        supabase.from('profiles').select('is_approved').eq('id', session.user.id).single()
+          .then(({ data, error }) => {
+            if (error) {
+              console.error("Error checking approval status:", error);
+              navigate("/initial-payment", { replace: true }); // Redirect to payment if status check fails
+              return;
+            }
+            if (data?.is_approved) {
+              navigate("/dashboard", { replace: true });
+            } else {
+              navigate("/initial-payment", { replace: true });
+            }
+          })
+          .catch(err => {
+            console.error("Unexpected error during approval check:", err);
+            navigate("/initial-payment", { replace: true });
+          });
       }
     });
   }, [navigate]);
@@ -89,9 +106,9 @@ const Auth = () => {
       if (error) throw error;
       toast({
         title: "Login realizado com sucesso!",
-        description: "Bem-vindo ao AASP"
+        description: "Verificando status de adesão..."
       });
-      navigate("/dashboard");
+      navigate("/initial-payment", { replace: true }); // Redirect to initial payment page after login
     } catch (error: any) {
       if (error instanceof z.ZodError) {
         toast({
@@ -139,9 +156,9 @@ const Auth = () => {
       if (error) throw error;
       toast({
         title: "Conta criada com sucesso!",
-        description: "Você já pode fazer login"
+        description: "Agora, realize o pagamento de adesão para ativar seu acesso."
       });
-      navigate("/dashboard");
+      navigate("/initial-payment", { replace: true }); // Redirect to initial payment page after signup
     } catch (error: any) {
       if (error instanceof z.ZodError) {
         toast({

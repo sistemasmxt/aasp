@@ -270,27 +270,33 @@ export type Database = {
         Row: {
           amount: number
           created_at: string
+          description: string | null
           due_date: string
           id: string
           paid_at: string | null
+          payment_type: Database["public"]["Enums"]["payment_type_enum"]
           status: string
           user_id: string
         }
         Insert: {
           amount: number
           created_at?: string
+          description?: string | null
           due_date: string
           id?: string
           paid_at?: string | null
+          payment_type?: Database["public"]["Enums"]["payment_type_enum"]
           status?: string
           user_id: string
         }
         Update: {
           amount?: number
           created_at?: string
+          description?: string | null
           due_date?: string
           id?: string
           paid_at?: string | null
+          payment_type?: Database["public"]["Enums"]["payment_type_enum"]
           status?: string
           user_id?: string
         }
@@ -303,6 +309,8 @@ export type Database = {
           created_at: string
           full_name: string
           id: string
+          initial_payment_status: Database["public"]["Enums"]["initial_payment_status_enum"]
+          is_approved: boolean
           latitude: number | null
           longitude: number | null
           phone: string | null
@@ -314,6 +322,8 @@ export type Database = {
           created_at?: string
           full_name: string
           id: string
+          initial_payment_status?: Database["public"]["Enums"]["initial_payment_status_enum"]
+          is_approved?: boolean
           latitude?: number | null
           longitude?: number | null
           phone?: string | null
@@ -325,6 +335,8 @@ export type Database = {
           created_at?: string
           full_name?: string
           id?: string
+          initial_payment_status?: Database["public"]["Enums"]["initial_payment_status_enum"]
+          is_approved?: boolean
           latitude?: number | null
           longitude?: number | null
           phone?: string | null
@@ -428,6 +440,8 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
+      initial_payment_status_enum: "unpaid" | "pending" | "paid"
+      payment_type_enum: "initial" | "recurring"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -556,6 +570,8 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
+      initial_payment_status_enum: ["unpaid", "pending", "paid"],
+      payment_type_enum: ["initial", "recurring"],
     },
   },
 } as const

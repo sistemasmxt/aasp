@@ -35,10 +35,13 @@ import AuditLogs from '@/components/admin/AuditLogs';
 interface SystemStats {
   totalUsers: number;
   activeUsers: number;
+  approvedUsers: number; // New stat
   totalCameras: number;
   activeCameras: number;
   totalPayments: number;
   pendingPayments: number;
+  initialPaymentsPending: number; // New stat
+  recurringPaymentsPending: number; // New stat
   systemHealth: 'healthy' | 'warning' | 'critical';
   lastBackup: string;
   databaseSize: string;
@@ -71,6 +74,11 @@ const AdminBackend = () => {
         .from('profiles')
         .select('*', { count: 'exact', head: true });
 
+      const { count: approvedUsers } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_approved', true);
+
       // Get camera stats
       const { count: totalCameras } = await supabase
         .from('cameras')
@@ -91,6 +99,18 @@ const AdminBackend = () => {
         .select('*', { count: 'exact', head: true })
         .eq('status', 'pending');
 
+      const { count: initialPaymentsPending } = await supabase
+        .from('payments')
+        .select('*', { count: 'exact', head: true })
+        .eq('payment_type', 'initial')
+        .eq('status', 'pending');
+
+      const { count: recurringPaymentsPending } = await supabase
+        .from('payments')
+        .select('*', { count: 'exact', head: true })
+        .eq('payment_type', 'recurring')
+        .eq('status', 'pending');
+
       // Get active users (users who logged in within last 30 days)
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -107,10 +127,13 @@ const AdminBackend = () => {
       setStats({
         totalUsers: totalUsers || 0,
         activeUsers: activeUsers || 0,
+        approvedUsers: approvedUsers || 0,
         totalCameras: totalCameras || 0,
         activeCameras: activeCameras || 0,
         totalPayments: totalPayments || 0,
         pendingPayments: pendingPayments || 0,
+        initialPaymentsPending: initialPaymentsPending || 0,
+        recurringPaymentsPending: recurringPaymentsPending || 0,
         systemHealth,
         lastBackup: new Date().toISOString(),
         databaseSize: '2.4 GB'
@@ -212,7 +235,7 @@ const AdminBackend = () => {
             <CardContent>
               <div className="text-2xl font-bold text-white">{stats?.totalUsers || 0}</div>
               <p className="text-xs text-slate-400">
-                {stats?.activeUsers || 0} ativos (30d)
+                {stats?.approvedUsers || 0} aprovados | {stats?.activeUsers || 0} ativos (30d)
               </p>
             </CardContent>
           </Card>
@@ -238,7 +261,7 @@ const AdminBackend = () => {
             <CardContent>
               <div className="text-2xl font-bold text-white">{stats?.totalPayments || 0}</div>
               <p className="text-xs text-slate-400">
-                {stats?.pendingPayments || 0} pendentes
+                {stats?.initialPaymentsPending || 0} adesão pendente | {stats?.recurringPaymentsPending || 0} mensalidade pendente
               </p>
             </CardContent>
           </Card>

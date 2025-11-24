@@ -6,24 +6,30 @@ import { Users, Camera, DollarSign, Shield, TrendingUp, AlertCircle } from 'luci
 interface DashboardStats {
   totalUsers: number;
   totalAdmins: number;
+  approvedUsers: number; // New stat
   totalCameras: number;
   activeCameras: number;
   totalPayments: number;
   paidPayments: number;
   pendingPayments: number;
   overduePayments: number;
+  initialPaymentsPending: number; // New stat
+  recurringPaymentsPending: number; // New stat
 }
 
 const AdminDashboard = () => {
   const [stats, setStats] = useState<DashboardStats>({
     totalUsers: 0,
     totalAdmins: 0,
+    approvedUsers: 0,
     totalCameras: 0,
     activeCameras: 0,
     totalPayments: 0,
     paidPayments: 0,
     pendingPayments: 0,
     overduePayments: 0,
+    initialPaymentsPending: 0,
+    recurringPaymentsPending: 0,
   });
   const [loading, setLoading] = useState(true);
 
@@ -36,15 +42,21 @@ const AdminDashboard = () => {
       const [
         { count: usersCount },
         { count: adminsCount },
+        { count: approvedUsersCount },
         { data: cameras },
         { count: paymentsCount },
         { data: payments },
+        { count: initialPaymentsPendingCount },
+        { count: recurringPaymentsPendingCount },
       ] = await Promise.all([
         supabase.from('profiles').select('*', { count: 'exact', head: true }),
         supabase.from('user_roles').select('*', { count: 'exact', head: true }).eq('role', 'admin'),
+        supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('is_approved', true),
         supabase.from('cameras').select('is_active'),
         supabase.from('payments').select('*', { count: 'exact', head: true }),
-        supabase.from('payments').select('status'),
+        supabase.from('payments').select('status, payment_type'),
+        supabase.from('payments').select('*', { count: 'exact', head: true }).eq('payment_type', 'initial').eq('status', 'pending'),
+        supabase.from('payments').select('*', { count: 'exact', head: true }).eq('payment_type', 'recurring').eq('status', 'pending'),
       ]);
 
       const activeCameras = cameras?.filter(c => c.is_active).length || 0;
@@ -55,12 +67,15 @@ const AdminDashboard = () => {
       setStats({
         totalUsers: usersCount || 0,
         totalAdmins: adminsCount || 0,
+        approvedUsers: approvedUsersCount || 0,
         totalCameras: cameras?.length || 0,
         activeCameras,
         totalPayments: paymentsCount || 0,
         paidPayments,
         pendingPayments,
         overduePayments,
+        initialPaymentsPending: initialPaymentsPendingCount || 0,
+        recurringPaymentsPending: recurringPaymentsPendingCount || 0,
       });
     } catch (error) {
       console.error('Error fetching stats:', error);
@@ -97,7 +112,7 @@ const AdminDashboard = () => {
           <CardContent>
             <div className="text-2xl font-bold">{stats.totalUsers}</div>
             <p className="text-xs text-muted-foreground">
-              {stats.totalAdmins} administradores
+              {stats.approvedUsers} aprovados | {stats.totalAdmins} administradores
             </p>
           </CardContent>
         </Card>
@@ -150,7 +165,9 @@ const AdminDashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-yellow-600">{stats.pendingPayments}</div>
-            <p className="text-xs text-muted-foreground">Aguardando pagamento</p>
+            <p className="text-xs text-muted-foreground">
+              {stats.initialPaymentsPending} adesão | {stats.recurringPaymentsPending} mensalidade
+            </p>
           </CardContent>
         </Card>
 

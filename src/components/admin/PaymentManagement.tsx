@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Trash2, Edit } from 'lucide-react';
+import { Plus, Trash2, Edit, DollarSign, CalendarPlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { logAudit } from '@/lib/auditLogger';
 
@@ -16,9 +16,11 @@ interface Payment {
   id: string;
   user_id: string;
   amount: number;
-  status: string;
+  status: 'pending' | 'paid' | 'overdue';
   due_date: string;
   paid_at: string | null;
+  payment_type: 'initial' | 'recurring';
+  description: string | null;
   profiles: {
     full_name: string;
   } | null;
@@ -39,7 +41,9 @@ const PaymentManagement = () => {
     user_id: '',
     amount: '',
     due_date: '',
-    status: 'pending'
+    status: 'pending',
+    payment_type: 'recurring',
+    description: '',
   });
   const { toast } = useToast();
 
@@ -52,24 +56,11 @@ const PaymentManagement = () => {
     try {
       const { data, error } = await supabase
         .from('payments')
-        .select('*')
+        .select('*, profiles(full_name)')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-
-      const paymentsWithProfiles = await Promise.all(
-        (data || []).map(async (payment) => {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('full_name')
-            .eq('id', payment.user_id)
-            .single();
-
-          return { ...payment, profiles: profile };
-        })
-      );
-
-      setPayments(paymentsWithProfiles as Payment[]);
+      setPayments(data as Payment[]);
     } catch (error) {
       console.error('Error fetching payments:', error);
       toast({
@@ -103,6 +94,8 @@ const PaymentManagement = () => {
       amount: payment.amount.toString(),
       due_date: payment.due_date,
       status: payment.status,
+      payment_type: payment.payment_type,
+      description: payment.description || '',
     });
     setIsDialogOpen(true);
   };
@@ -117,6 +110,9 @@ const PaymentManagement = () => {
         amount: parseFloat(formData.amount),
         due_date: formData.due_date,
         status: formData.status,
+        payment_type: formData.payment_type,
+        description: formData.description || null,
+        paid_at: formData.status === 'paid' ? new Date().toISOString() : null,
       };
 
       if (editingPayment) {
@@ -133,6 +129,17 @@ const PaymentManagement = () => {
           record_id: editingPayment.id,
           details: paymentData,
         });
+
+        // If an initial payment is marked as paid, approve the user
+        if (editingPayment.payment_type === 'initial' && paymentData.status === 'paid') {
+          await supabase.from('profiles').update({ is_approved: true, initial_payment_status: 'paid' }).eq('id', editingPayment.user_id);
+          await logAudit({
+            action: 'UPDATE',
+            table_name: 'profiles',
+            record_id: editingPayment.user_id,
+            details: { is_approved: true, initial_payment_status: 'paid' },
+          });
+        }
 
         toast({
           title: 'Sucesso',
@@ -162,7 +169,7 @@ const PaymentManagement = () => {
 
       setIsDialogOpen(false);
       setEditingPayment(null);
-      setFormData({ user_id: '', amount: '', due_date: '', status: 'pending' });
+      setFormData({ user_id: '', amount: '', due_date: '', status: 'pending', payment_type: 'recurring', description: '' });
       fetchPayments();
     } catch (error) {
       console.error('Error saving payment:', error);
@@ -202,6 +209,67 @@ const PaymentManagement = () => {
     }
   };
 
+  const handleGenerateRecurringPayments = async () => {
+    if (!confirm('Deseja gerar pagamentos recorrentes (mensalidades) para todos os usuários ativos?')) return;
+
+    setLoading(true);
+    try {
+      const { data: activeUsers, error: usersError } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .eq('is_approved', true);
+
+      if (usersError) throw usersError;
+
+      if (!activeUsers || activeUsers.length === 0) {
+        toast({ title: 'Nenhum usuário ativo', description: 'Não há usuários aprovados para gerar mensalidades.', variant: 'warning' });
+        setLoading(false);
+        return;
+      }
+
+      const nextMonth = new Date();
+      nextMonth.setMonth(nextMonth.getMonth() + 1);
+      nextMonth.setDate(10); // Set due date to 10th of next month
+
+      const paymentsToInsert = activeUsers.map(user => ({
+        user_id: user.id,
+        amount: 120.00,
+        due_date: nextMonth.toISOString().split('T')[0], // YYYY-MM-DD
+        status: 'pending',
+        payment_type: 'recurring',
+        description: `Mensalidade - ${nextMonth.toLocaleString('pt-BR', { month: 'long', year: 'numeric' })}`,
+      }));
+
+      const { error: insertError } = await supabase
+        .from('payments')
+        .insert(paymentsToInsert);
+
+      if (insertError) throw insertError;
+
+      await logAudit({
+        action: 'CREATE',
+        table_name: 'payments',
+        details: { action: 'generate_recurring_payments', count: paymentsToInsert.length },
+      });
+
+      toast({
+        title: 'Mensalidades geradas!',
+        description: `${paymentsToInsert.length} pagamentos recorrentes foram criados para o próximo mês.`,
+        variant: 'success',
+      });
+      fetchPayments();
+    } catch (error: any) {
+      console.error('Error generating recurring payments:', error.message);
+      toast({
+        title: 'Erro ao gerar mensalidades',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     const statusMap = {
       paid: { label: 'Pago', variant: 'default' as const },
@@ -214,6 +282,15 @@ const PaymentManagement = () => {
     return <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>;
   };
 
+  const getPaymentTypeBadge = (type: string) => {
+    const typeMap = {
+      initial: { label: 'Adesão', variant: 'outline' as const },
+      recurring: { label: 'Mensalidade', variant: 'default' as const },
+    };
+    const typeInfo = typeMap[type as keyof typeof typeMap] || { label: type, variant: 'secondary' as const };
+    return <Badge variant={typeInfo.variant}>{typeInfo.label}</Badge>;
+  };
+
   if (loading) {
     return <div className="text-center py-8">Carregando pagamentos...</div>;
   }
@@ -222,96 +299,132 @@ const PaymentManagement = () => {
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle>Gerenciar Pagamentos</CardTitle>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={() => {
-                setEditingPayment(null);
-                setFormData({ user_id: '', amount: '', due_date: '', status: 'pending' });
-              }}>
-                <Plus className="h-4 w-4 mr-2" />
-                Novo Pagamento
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>
-                  {editingPayment ? 'Editar Pagamento' : 'Criar Novo Pagamento'}
-                </DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="user">Usuário</Label>
-                  <Select
-                    value={formData.user_id}
-                    onValueChange={(value) => setFormData({ ...formData, user_id: value })}
-                    disabled={!!editingPayment}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione um usuário" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {profiles.map((profile) => (
-                        <SelectItem key={profile.id} value={profile.id}>
-                          {profile.full_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+          <CardTitle className="flex items-center gap-2">
+            <DollarSign className="h-6 w-6 text-primary" />
+            Gerenciar Pagamentos
+          </CardTitle>
+          <div className="flex gap-2">
+            <Button onClick={handleGenerateRecurringPayments} disabled={loading} variant="outline">
+              <CalendarPlus className="h-4 w-4 mr-2" />
+              Gerar Mensalidades
+            </Button>
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button onClick={() => {
+                  setEditingPayment(null);
+                  setFormData({ user_id: '', amount: '', due_date: '', status: 'pending', payment_type: 'recurring', description: '' });
+                }}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Novo Pagamento
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>
+                    {editingPayment ? 'Editar Pagamento' : 'Criar Novo Pagamento'}
+                  </DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="user">Usuário</Label>
+                    <Select
+                      value={formData.user_id}
+                      onValueChange={(value) => setFormData({ ...formData, user_id: value })}
+                      disabled={!!editingPayment}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione um usuário" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {profiles.map((profile) => (
+                          <SelectItem key={profile.id} value={profile.id}>
+                            {profile.full_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="amount">Valor (R$)</Label>
-                  <Input
-                    id="amount"
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    value={formData.amount}
-                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                    required
-                  />
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="amount">Valor (R$)</Label>
+                    <Input
+                      id="amount"
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      value={formData.amount}
+                      onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                      required
+                    />
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="due_date">Data de Vencimento</Label>
-                  <Input
-                    id="due_date"
-                    type="date"
-                    value={formData.due_date}
-                    onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
-                    required
-                  />
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="due_date">Data de Vencimento</Label>
+                    <Input
+                      id="due_date"
+                      type="date"
+                      value={formData.due_date}
+                      onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
+                      required
+                    />
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="status">Status</Label>
-                  <Select
-                    value={formData.status}
-                    onValueChange={(value) => setFormData({ ...formData, status: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pending">Pendente</SelectItem>
-                      <SelectItem value="paid">Pago</SelectItem>
-                      <SelectItem value="overdue">Atrasado</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="status">Status</Label>
+                    <Select
+                      value={formData.status}
+                      onValueChange={(value) => setFormData({ ...formData, status: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pending">Pendente</SelectItem>
+                        <SelectItem value="paid">Pago</SelectItem>
+                        <SelectItem value="overdue">Atrasado</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                <div className="flex justify-end gap-2">
-                  <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                    Cancelar
-                  </Button>
-                  <Button type="submit" disabled={loading}>
-                    {loading ? 'Salvando...' : (editingPayment ? 'Atualizar' : 'Criar Pagamento')}
-                  </Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
+                  <div className="space-y-2">
+                    <Label htmlFor="payment_type">Tipo de Pagamento</Label>
+                    <Select
+                      value={formData.payment_type}
+                      onValueChange={(value) => setFormData({ ...formData, payment_type: value as 'initial' | 'recurring' })}
+                      disabled={!!editingPayment}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="initial">Adesão</SelectItem>
+                        <SelectItem value="recurring">Recorrente (Mensalidade)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="description">Descrição</Label>
+                    <Input
+                      id="description"
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      placeholder="Ex: Mensalidade Out/2025"
+                    />
+                  </div>
+
+                  <div className="flex justify-end gap-2">
+                    <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                      Cancelar
+                    </Button>
+                    <Button type="submit" disabled={loading}>
+                      {loading ? 'Salvando...' : (editingPayment ? 'Atualizar' : 'Criar Pagamento')}
+                    </Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -319,6 +432,8 @@ const PaymentManagement = () => {
           <TableHeader>
             <TableRow>
               <TableHead>Usuário</TableHead>
+              <TableHead>Tipo</TableHead>
+              <TableHead>Descrição</TableHead>
               <TableHead>Valor</TableHead>
               <TableHead>Vencimento</TableHead>
               <TableHead>Status</TableHead>
@@ -329,6 +444,8 @@ const PaymentManagement = () => {
             {payments.map((payment) => (
               <TableRow key={payment.id}>
                 <TableCell>{payment.profiles?.full_name || 'N/A'}</TableCell>
+                <TableCell>{getPaymentTypeBadge(payment.payment_type)}</TableCell>
+                <TableCell>{payment.description || '-'}</TableCell>
                 <TableCell>R$ {parseFloat(payment.amount.toString()).toFixed(2)}</TableCell>
                 <TableCell>{new Date(payment.due_date).toLocaleDateString('pt-BR')}</TableCell>
                 <TableCell>{getStatusBadge(payment.status)}</TableCell>
