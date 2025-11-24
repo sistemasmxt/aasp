@@ -5,13 +5,13 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, Loader2, ArrowLeft } from 'lucide-react';
-import * as QRCodeModule from 'qrcode.react'; // Changed import here
+import QRCode from 'qrcode.react'; // Reverted to the most common default import
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import logo from '@/img/logo.png';
 
-const PIX_KEY = "61959355000105"; // CNPJ
+const PIX_KEY = "61999999999"; // CNPJ
 const PIX_NAME = "ASSOCIACAO DE APOIO A SEGURANCA PUBLICA";
 const INITIAL_PAYMENT_AMOUNT = "132.00"; // R$132,00
 
@@ -120,7 +120,7 @@ const InitialPayment = () => {
         {paymentStatus === 'paid' ? (
           <div className="space-y-4">
             <CheckCircle className="h-24 w-24 text-green-500 mx-auto" />
-            <h2 className="text-2xl font-bold text-foreground">Pagamento Confirmado!</h2>
+            <h2 className="2xl font-bold text-foreground">Pagamento Confirmado!</h2>
             <p className="text-muted-foreground">
               Seu acesso foi aprovado. Você será redirecionado para o painel.
             </p>
@@ -132,7 +132,7 @@ const InitialPayment = () => {
           <div className="space-y-6">
             <CardContent className="p-0">
               <div className="bg-white p-4 rounded-lg inline-block">
-                <QRCodeModule.default value={pixPayload} size={256} level="H" />
+                <QRCode value={pixPayload} size={256} level="H" />
               </div>
               <p className="text-lg font-semibold text-foreground mt-4">Valor: R$ {INITIAL_PAYMENT_AMOUNT}</p>
               <p className="text-sm text-muted-foreground">Chave PIX (CNPJ): {PIX_KEY}</p>
