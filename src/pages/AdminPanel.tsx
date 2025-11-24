@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAdmin } from '@/hooks/useAdmin';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Users, Camera, DollarSign, Shield, LogOut } from 'lucide-react';
+import { ArrowLeft, Users, Camera, DollarSign, Shield, LogOut, Wrench } from 'lucide-react';
 import logo from '@/img/logo.png';
 import { useToast } from '@/hooks/use-toast';
 import UserManagement from '@/components/admin/UserManagementEnhanced';
@@ -11,14 +11,16 @@ import CameraManagement from '@/components/admin/CameraManagementEnhanced';
 import PaymentManagement from '@/components/admin/PaymentManagement';
 import AdminDashboard from '@/components/admin/AdminDashboard';
 import AuditLogs from '@/components/admin/AuditLogs';
+import PublicUtilityContactsManagement from '@/components/admin/PublicUtilityContactsManagement'; // New import
+import { supabase } from '@/integrations/supabase/client';
 
 const AdminPanel = () => {
   const { isAdmin, loading } = useAdmin();
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const handleLogout = () => {
-    sessionStorage.removeItem('adminLoggedIn');
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     toast({
       title: "Logout realizado",
       description: "Você foi desconectado do painel administrativo"
@@ -72,7 +74,7 @@ const AdminPanel = () => {
 
       <div className="container mx-auto px-4 py-8">
         <Tabs defaultValue="dashboard" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6"> {/* Adjusted grid-cols */}
             <TabsTrigger value="dashboard">
               <Shield className="h-4 w-4 mr-2" />
               Dashboard
@@ -88,6 +90,10 @@ const AdminPanel = () => {
             <TabsTrigger value="payments">
               <DollarSign className="h-4 w-4 mr-2" />
               Pagamentos
+            </TabsTrigger>
+            <TabsTrigger value="utilities"> {/* New Tab Trigger */}
+              <Wrench className="h-4 w-4 mr-2" />
+              Utilidades
             </TabsTrigger>
             <TabsTrigger value="logs">
               <Shield className="h-4 w-4 mr-2" />
@@ -109,6 +115,10 @@ const AdminPanel = () => {
 
           <TabsContent value="payments">
             <PaymentManagement />
+          </TabsContent>
+
+          <TabsContent value="utilities"> {/* New Tab Content */}
+            <PublicUtilityContactsManagement />
           </TabsContent>
 
           <TabsContent value="logs">

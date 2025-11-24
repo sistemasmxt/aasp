@@ -94,18 +94,8 @@ const AdminLogin = () => {
             if (signUpError) throw signUpError;
 
             if (signUpData.user) {
-<<<<<<< HEAD
               // Wait a moment for triggers to complete
               await new Promise(resolve => setTimeout(resolve, 1000));
-=======
-              // Ensure profile exists (handle_new_user trigger should do this)
-              // Add admin role
-              const { error: roleError } = await supabase
-                .from('user_roles')
-                .insert({ user_id: signUpData.user.id, role: 'admin' });
-
-              if (roleError) throw roleError;
->>>>>>> 9b6de0e7e6e5d93dd56ea40da1c85ad3078bb022
 
               // Sign in the newly created admin
               const { error: signInAfterSignUpError } = await supabase.auth.signInWithPassword({
@@ -232,8 +222,4 @@ const AdminLogin = () => {
   );
 };
 
-<<<<<<< HEAD
 export default AdminLogin;
-=======
-export default AdminLogin;
->>>>>>> 9b6de0e7e6e5d93dd56ea40da1c85ad3078bb022

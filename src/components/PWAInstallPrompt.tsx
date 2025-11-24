@@ -8,11 +8,7 @@ export function PWAInstallPrompt() {
 
   useEffect(() => {
     window.addEventListener('beforeinstallprompt', (e) => {
-<<<<<<< HEAD
-      // Não prevenir o evento padrão para permitir o banner nativo
-=======
       e.preventDefault();
->>>>>>> 9b6de0e7e6e5d93dd56ea40da1c85ad3078bb022
       deferredPrompt = e;
       setInstallable(true);
     });
@@ -28,7 +24,7 @@ export function PWAInstallPrompt() {
 
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
-    
+
     if (outcome === 'accepted') {
       deferredPrompt = null;
       setInstallable(false);

@@ -332,6 +332,42 @@ export type Database = {
         }
         Relationships: []
       }
+      public_utility_contacts: {
+        Row: {
+          color_class: string
+          created_at: string
+          description: string | null
+          icon_name: string
+          id: string
+          name: string
+          phone: string
+          updated_at: string
+          whatsapp: string | null
+        }
+        Insert: {
+          color_class: string
+          created_at?: string
+          description?: string | null
+          icon_name: string
+          id?: string
+          name: string
+          phone: string
+          updated_at?: string
+          whatsapp?: string | null
+        }
+        Update: {
+          color_class?: string
+          created_at?: string
+          description?: string | null
+          icon_name?: string
+          id?: string
+          name?: string
+          phone?: string
+          updated_at?: string
+          whatsapp?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string | null
