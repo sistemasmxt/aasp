@@ -98,7 +98,7 @@ export default defineConfig(({ mode }) => ({
             src: "/maskable-icon-512x512.png",
             sizes: "512x512",
             type: "image/png",
-            purpose": "maskable"
+            purpose: "maskable" // Added missing comma here
           }
         ],
         categories: ["security", "utilities", "productivity"],
