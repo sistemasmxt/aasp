@@ -318,7 +318,7 @@ DROP POLICY IF EXISTS "Public Utility Contacts: Enable read access for all users
 CREATE POLICY "Public Utility Contacts: Enable read access for all users" ON public.public_utility_contacts FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Public Utility Contacts: admin can manage all" ON public.public_utility_contacts;
-CREATE POLICY "Public Utility Contacts: admin can manage all" ON public.public_utility_contacts FOR ALL TO authenticated USING (public.has_role('admin', auth.uid()));
+CREATE POLICY "Public Utility Contacts: admin can manage all" ON public.public_utility_contacts FOR ALL TO authenticated USING (public.has_role('admin', auth.uid())) WITH CHECK (public.has_role('admin', auth.uid()));
 
 -- =================================================================================================
 -- TRIGGERS
@@ -392,12 +392,9 @@ ON CONFLICT (name) DO NOTHING;
 
 -- Create a default admin user if not exists
 -- IMPORTANT: Change 'admin123' password immediately after creation!
-INSERT INTO auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, is_sso_user, created_at, updated_at)
-VALUES (
-    '00000000-0000-0000-0000-000000000000', -- Replace with your instance_id if different
+INSERT INTO auth.users (id, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, is_sso_user, created_at, updated_at)
+SELECT
     '00000000-0000-0000-0000-000000000001', -- A fixed UUID for the admin user
-    'authenticated',
-    'authenticated',
     'admin@aasp.app.br',
     crypt('admin123', gen_salt('bf')), -- IMPORTANT: Change 'admin123'
     now(),
@@ -406,8 +403,7 @@ VALUES (
     false,
     now(),
     now()
-)
-ON CONFLICT (email) DO NOTHING;
+WHERE NOT EXISTS (SELECT 1 FROM auth.users WHERE email = 'admin@aasp.app.br');
 
 -- Assign 'admin' role to the default admin user if not already assigned
 INSERT INTO public.user_roles (user_id, role)
