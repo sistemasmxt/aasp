@@ -21,9 +21,7 @@ interface Payment {
   paid_at: string | null;
   payment_type: 'initial' | 'recurring';
   description: string | null;
-  profiles: {
-    full_name: string;
-  } | null;
+  user_full_name?: string; // Adicionado para armazenar o nome do usuário
 }
 
 interface Profile {
@@ -53,19 +51,45 @@ const PaymentManagement = () => {
   }, []);
 
   const fetchPayments = async () => {
+    setLoading(true);
     try {
-      const { data, error } = await supabase
+      // 1. Fetch payments data
+      const { data: paymentsData, error: paymentsError } = await supabase
         .from('payments')
-        .select('*, profiles(full_name)')
+        .select('*') // Select all columns from payments table
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setPayments(data as Payment[]);
-    } catch (error) {
+      if (paymentsError) throw paymentsError;
+
+      if (paymentsData && paymentsData.length > 0) {
+        // 2. Extract unique user IDs from payments
+        const userIds = [...new Set(paymentsData.map(p => p.user_id))];
+
+        // 3. Fetch profiles for these user IDs
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', userIds);
+
+        if (profilesError) throw profilesError;
+
+        // 4. Create a map for quick lookup of user names
+        const profilesMap = new Map(profilesData?.map(p => [p.id, p.full_name]));
+
+        // 5. Combine payments with user names
+        const paymentsWithNames = paymentsData.map(payment => ({
+          ...payment,
+          user_full_name: profilesMap.get(payment.user_id) || 'Usuário Desconhecido',
+        }));
+        setPayments(paymentsWithNames);
+      } else {
+        setPayments([]);
+      }
+    } catch (error: any) {
       console.error('Error fetching payments:', error);
       toast({
         title: 'Erro ao carregar pagamentos',
-        description: 'Tente novamente mais tarde',
+        description: error.message || 'Tente novamente mais tarde', // Use error.message for more detail
         variant: 'destructive',
       });
     } finally {
@@ -443,7 +467,7 @@ const PaymentManagement = () => {
           <TableBody>
             {payments.map((payment) => (
               <TableRow key={payment.id}>
-                <TableCell>{payment.profiles?.full_name || 'N/A'}</TableCell>
+                <TableCell>{payment.user_full_name || 'N/A'}</TableCell> {/* Usando o novo campo */}
                 <TableCell>{getPaymentTypeBadge(payment.payment_type)}</TableCell>
                 <TableCell>{payment.description || '-'}</TableCell>
                 <TableCell>R$ {parseFloat(payment.amount.toString()).toFixed(2)}</TableCell>
