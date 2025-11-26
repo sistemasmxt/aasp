@@ -94,8 +94,33 @@ const AdminLogin = () => {
             if (signUpError) throw signUpError;
 
             if (signUpData.user) {
-              // Wait a moment for triggers to complete
-              await new Promise(resolve => setTimeout(resolve, 1000));
+              const newAdminUserId = signUpData.user.id;
+
+              // Explicitly update profile for the admin user
+              const { error: profileUpdateError } = await supabase
+                .from('profiles')
+                .update({
+                  is_approved: true,
+                  initial_payment_status: 'paid',
+                  full_name: 'Administrador', // Ensure full_name is set
+                  phone: '', // Ensure phone is set
+                })
+                .eq('id', newAdminUserId);
+
+              if (profileUpdateError) {
+                console.error('Error updating admin profile after signup:', profileUpdateError);
+                throw profileUpdateError;
+              }
+
+              // Explicitly add admin role
+              const { error: roleInsertError } = await supabase
+                .from('user_roles')
+                .insert({ user_id: newAdminUserId, role: 'admin' });
+
+              if (roleInsertError) {
+                console.error('Error inserting admin role after signup:', roleInsertError);
+                throw roleInsertError;
+              }
 
               // Sign in the newly created admin
               const { error: signInAfterSignUpError } = await supabase.auth.signInWithPassword({
