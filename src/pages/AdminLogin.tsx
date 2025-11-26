@@ -104,34 +104,16 @@ const AdminLogin = () => {
             }
 
             if (signUpData.user) {
-              const newAdminUserId = signUpData.user.id;
-              console.log('Admin user signed up successfully:', newAdminUserId);
-              toast({ title: "Usuário admin criado.", description: "O trigger do banco de dados deve configurar o perfil e as permissões." });
-
-              // Rely on the 'handle_new_user' trigger to set profile and role
-              // Removed explicit profile update and role insert here.
-
-              // Sign in the newly created admin
-              console.log('Attempting to sign in newly created admin:', validatedData.email);
-              const { error: signInAfterSignUpError } = await supabase.auth.signInWithPassword({
-                email: validatedData.email,
-                password: validatedData.password
-              });
-              if (signInAfterSignUpError) {
-                console.error('Sign in after sign up error:', signInAfterSignUpError);
-                toast({ title: "Erro ao fazer login após cadastro", description: signInAfterSignUpError.message, variant: "destructive" });
-                throw signInAfterSignUpError;
-              }
-              console.log('Admin signed in successfully after initial setup.');
-
-              sessionStorage.setItem('adminLoggedIn', 'true');
+              console.log('Admin user signed up successfully:', signUpData.user.id);
               toast({
-                title: "Login administrativo realizado com sucesso!",
-                description: "Bem-vindo ao Painel Central",
+                title: "Conta de administrador criada!",
+                description: "Por favor, verifique seu e-mail no Supabase (se a confirmação estiver ativa) e tente fazer login novamente.",
                 variant: "success"
               });
-              navigate("/admin", { replace: true });
-              return;
+              // Do NOT attempt to sign in immediately after signup, rely on user to confirm email and then log in.
+              // The checkAdminSession will handle the rest on subsequent login attempts.
+              setIsLoading(false); // Stop loading here
+              return; // Exit the function
             }
           }
         }
