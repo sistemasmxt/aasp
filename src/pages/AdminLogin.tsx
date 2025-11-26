@@ -68,6 +68,8 @@ const AdminLogin = () => {
 
     try {
       const validatedData = adminLoginSchema.parse(rawData);
+      console.log('Attempting admin login for:', validatedData.email);
+      toast({ title: "Tentando login...", description: "Verificando credenciais." });
 
       // Attempt to sign in with Supabase
       const { data, error: authError } = await supabase.auth.signInWithPassword({
@@ -76,10 +78,14 @@ const AdminLogin = () => {
       });
 
       if (authError) {
+        console.error('Initial signInWithPassword error:', authError);
         // If user not found, try to create them (for the hardcoded admin)
         if (authError.message.includes('invalid login credentials') || authError.message.includes('user not found')) {
+          console.log('User not found or invalid credentials, checking if it\'s the hardcoded admin for initial setup.');
           // This is a special case for the initial hardcoded admin setup
           if (validatedData.email === 'admin@aasp.app.br' && validatedData.password === 'admin123') {
+            toast({ title: "Configurando admin...", description: "Primeiro acesso do administrador." });
+            console.log('Attempting to sign up hardcoded admin:', validatedData.email);
             const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
               email: validatedData.email,
               password: validatedData.password,
@@ -91,12 +97,18 @@ const AdminLogin = () => {
               }
             });
 
-            if (signUpError) throw signUpError;
+            if (signUpError) {
+              console.error('SignUp error for admin:', signUpError);
+              throw signUpError;
+            }
 
             if (signUpData.user) {
               const newAdminUserId = signUpData.user.id;
+              console.log('Admin user signed up successfully:', newAdminUserId);
+              toast({ title: "Usuário admin criado.", description: "Atualizando perfil e permissões." });
 
               // Explicitly update profile for the admin user
+              console.log('Updating admin profile:', newAdminUserId);
               const { error: profileUpdateError } = await supabase
                 .from('profiles')
                 .update({
@@ -111,8 +123,10 @@ const AdminLogin = () => {
                 console.error('Error updating admin profile after signup:', profileUpdateError);
                 throw profileUpdateError;
               }
+              console.log('Admin profile updated.');
 
               // Explicitly add admin role
+              console.log('Inserting admin role for:', newAdminUserId);
               const { error: roleInsertError } = await supabase
                 .from('user_roles')
                 .insert({ user_id: newAdminUserId, role: 'admin' });
@@ -121,28 +135,37 @@ const AdminLogin = () => {
                 console.error('Error inserting admin role after signup:', roleInsertError);
                 throw roleInsertError;
               }
+              console.log('Admin role inserted.');
 
               // Sign in the newly created admin
+              console.log('Attempting to sign in newly created admin:', validatedData.email);
               const { error: signInAfterSignUpError } = await supabase.auth.signInWithPassword({
                 email: validatedData.email,
                 password: validatedData.password
               });
-              if (signInAfterSignUpError) throw signInAfterSignUpError;
+              if (signInAfterSignUpError) {
+                console.error('Sign in after sign up error:', signInAfterSignUpError);
+                throw signInAfterSignUpError;
+              }
+              console.log('Admin signed in successfully after initial setup.');
 
               sessionStorage.setItem('adminLoggedIn', 'true');
               toast({
                 title: "Login administrativo realizado com sucesso!",
-                description: "Bem-vindo ao Painel Central"
+                description: "Bem-vindo ao Painel Central",
+                variant: "success"
               });
               navigate("/admin", { replace: true });
               return;
             }
           }
         }
-        throw authError;
+        throw authError; // Re-throw original auth error if not hardcoded admin setup
       }
 
       if (data.user) {
+        console.log('User signed in. Checking admin role for:', data.user.id);
+        toast({ title: "Login bem-sucedido.", description: "Verificando permissões de administrador." });
         // Check if the logged-in user has the 'admin' role
         const { data: roles, error: rolesError } = await supabase
           .from('user_roles')
@@ -152,22 +175,26 @@ const AdminLogin = () => {
           .single();
 
         if (roles && !rolesError) {
+          console.log('User has admin role. Granting access.');
           sessionStorage.setItem('adminLoggedIn', 'true');
           toast({
             title: "Login administrativo realizado com sucesso!",
-            description: "Bem-vindo ao Painel Central"
+            description: "Bem-vindo ao Painel Central",
+            variant: "success"
           });
           navigate("/admin", { replace: true });
         } else {
           // If authenticated but not an admin role
+          console.warn('User authenticated but does not have admin role. Signing out.');
           await supabase.auth.signOut(); // Log out non-admin user
           throw new Error('Acesso negado. Você não tem permissões de administrador.');
         }
       } else {
+        console.error('No user data after sign-in attempt.');
         throw new Error('Credenciais inválidas. Acesso negado.');
       }
     } catch (error: any) {
-      console.error('Login error:', error);
+      console.error('Final catch block error:', error);
       if (error instanceof z.ZodError) {
         toast({
           title: "Dados inválidos",
