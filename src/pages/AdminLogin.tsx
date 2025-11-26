@@ -106,39 +106,10 @@ const AdminLogin = () => {
             if (signUpData.user) {
               const newAdminUserId = signUpData.user.id;
               console.log('Admin user signed up successfully:', newAdminUserId);
-              toast({ title: "Usuário admin criado.", description: "Atualizando perfil e permissões." });
+              toast({ title: "Usuário admin criado.", description: "O trigger do banco de dados deve configurar o perfil e as permissões." });
 
-              // Explicitly update profile for the admin user
-              console.log('Updating admin profile:', newAdminUserId);
-              const { error: profileUpdateError } = await supabase
-                .from('profiles')
-                .update({
-                  is_approved: true,
-                  initial_payment_status: 'paid',
-                  full_name: 'Administrador', // Ensure full_name is set
-                  phone: '', // Ensure phone is set
-                })
-                .eq('id', newAdminUserId);
-
-              if (profileUpdateError) {
-                console.error('Error updating admin profile after signup:', profileUpdateError);
-                toast({ title: "Erro ao atualizar perfil do admin", description: profileUpdateError.message, variant: "destructive" });
-                throw profileUpdateError;
-              }
-              console.log('Admin profile updated.');
-
-              // Explicitly add admin role
-              console.log('Inserting admin role for:', newAdminUserId);
-              const { error: roleInsertError } = await supabase
-                .from('user_roles')
-                .insert({ user_id: newAdminUserId, role: 'admin' });
-
-              if (roleInsertError) {
-                console.error('Error inserting admin role after signup:', roleInsertError);
-                toast({ title: "Erro ao inserir papel de admin", description: roleInsertError.message, variant: "destructive" });
-                throw roleInsertError;
-              }
-              console.log('Admin role inserted.');
+              // Rely on the 'handle_new_user' trigger to set profile and role
+              // Removed explicit profile update and role insert here.
 
               // Sign in the newly created admin
               console.log('Attempting to sign in newly created admin:', validatedData.email);
