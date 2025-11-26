@@ -99,6 +99,7 @@ const AdminLogin = () => {
 
             if (signUpError) {
               console.error('SignUp error for admin:', signUpError);
+              toast({ title: "Erro no cadastro do admin", description: signUpError.message, variant: "destructive" });
               throw signUpError;
             }
 
@@ -121,6 +122,7 @@ const AdminLogin = () => {
 
               if (profileUpdateError) {
                 console.error('Error updating admin profile after signup:', profileUpdateError);
+                toast({ title: "Erro ao atualizar perfil do admin", description: profileUpdateError.message, variant: "destructive" });
                 throw profileUpdateError;
               }
               console.log('Admin profile updated.');
@@ -133,6 +135,7 @@ const AdminLogin = () => {
 
               if (roleInsertError) {
                 console.error('Error inserting admin role after signup:', roleInsertError);
+                toast({ title: "Erro ao inserir papel de admin", description: roleInsertError.message, variant: "destructive" });
                 throw roleInsertError;
               }
               console.log('Admin role inserted.');
@@ -145,6 +148,7 @@ const AdminLogin = () => {
               });
               if (signInAfterSignUpError) {
                 console.error('Sign in after sign up error:', signInAfterSignUpError);
+                toast({ title: "Erro ao fazer login após cadastro", description: signInAfterSignUpError.message, variant: "destructive" });
                 throw signInAfterSignUpError;
               }
               console.log('Admin signed in successfully after initial setup.');

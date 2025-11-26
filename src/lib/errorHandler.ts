@@ -6,6 +6,8 @@ export function mapErrorToUserMessage(error: unknown): string {
   // Log full error for debugging (only in development)
   if (import.meta.env.DEV) {
     console.error('Detailed error:', error);
+    // Temporarily return raw error message in development for debugging
+    return (error as { message?: string })?.message || 'Ocorreu um erro desconhecido (DEV)';
   }
 
   const errorMessage = (error as { message?: string })?.message?.toLowerCase() || '';
