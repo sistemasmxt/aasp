@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { Constants } from '@/integrations/supabase/types';
 
 // User validation schema
 export const userSchema = z.object({
@@ -7,6 +8,8 @@ export const userSchema = z.object({
   phone: z.string().regex(/^\+?[\d\s()-]{10,20}$/, 'Telefone inválido').optional().or(z.literal('')),
   address: z.string().max(500, 'Endereço muito longo').optional().or(z.literal('')),
   password: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres').optional(),
+  is_approved: z.boolean().optional(), // New: Approval status
+  initial_payment_status: z.enum(Constants.public.Enums.initial_payment_status_enum).optional(), // New: Initial payment status
 });
 
 // Camera validation schema
@@ -30,6 +33,8 @@ export const paymentSchema = z.object({
   amount: z.number().min(0.01, 'Valor mínimo é R$ 0,01').max(999999.99, 'Valor muito alto'),
   due_date: z.string().min(1, 'Data de vencimento obrigatória'),
   status: z.enum(['pending', 'paid', 'overdue'], { required_error: 'Status obrigatório' }),
+  payment_type: z.enum(Constants.public.Enums.payment_type_enum, { required_error: 'Tipo de pagamento obrigatório' }), // New: Payment type
+  description: z.string().max(500, 'Descrição muito longa').optional().or(z.literal('')), // New: Description
 });
 
 // Emergency alert validation schema
@@ -44,4 +49,14 @@ export const emergencyAlertSchema = z.object({
 export const messageSchema = z.object({
   content: z.string().min(1, 'Mensagem não pode estar vazia').max(5000, 'Mensagem muito longa'),
   message_type: z.enum(['text', 'image', 'video', 'audio', 'file']),
+});
+
+// Public Utility Contact validation schema (New)
+export const publicUtilityContactSchema = z.object({
+  name: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres').max(100, 'Nome muito longo'),
+  phone: z.string().regex(/^\+?[\d\s()-]{10,20}$/, 'Telefone inválido'),
+  whatsapp: z.string().regex(/^\+?[\d\s()-]{10,20}$/, 'WhatsApp inválido').optional().or(z.literal('')),
+  description: z.string().max(500, 'Descrição muito longa').optional().or(z.literal('')),
+  icon_name: z.string().min(1, 'Nome do ícone obrigatório'),
+  color_class: z.string().min(1, 'Classe de cor obrigatória'),
 });

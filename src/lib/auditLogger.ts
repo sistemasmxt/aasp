@@ -1,7 +1,8 @@
 import { supabase } from '@/integrations/supabase/client';
+import { Tables } from '@/integrations/supabase/types'; // Import Tables type
 
 export type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE';
-export type AuditTable = 'users' | 'cameras' | 'payments' | 'user_roles' | 'public_utility_contacts'; // Added new table
+export type AuditTable = 'users' | 'cameras' | 'payments' | 'user_roles' | 'public_utility_contacts' | 'profiles' | 'groups' | 'group_members'; // Added new tables
 
 interface LogAuditParams {
   action: AuditAction;

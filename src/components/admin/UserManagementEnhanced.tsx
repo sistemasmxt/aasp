@@ -11,21 +11,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { logAudit } from '@/lib/auditLogger';
+import { Tables } from '@/integrations/supabase/types'; // Import Tables type
 
-interface Profile {
-  id: string;
-  full_name: string;
-  phone: string | null;
-  address: string | null;
-  created_at: string;
-  is_approved: boolean;
-  initial_payment_status: 'unpaid' | 'pending' | 'paid';
-}
-
-interface UserRole {
-  user_id: string;
-  role: string;
-}
+type Profile = Tables<'profiles'>;
+type UserRole = Tables<'user_roles'>;
 
 const UserManagementEnhanced = () => {
   const [profiles, setProfiles] = useState<Profile[]>([]);
@@ -140,6 +129,7 @@ const UserManagementEnhanced = () => {
         toast({
           title: 'Usuário criado!',
           description: 'O novo usuário foi cadastrado com sucesso.',
+          variant: 'default', // Corrected variant
         });
 
         setCreateDialogOpen(false);
@@ -196,6 +186,7 @@ const UserManagementEnhanced = () => {
       toast({
         title: 'Usuário atualizado!',
         description: 'As informações foram salvas com sucesso.',
+        variant: 'default', // Corrected variant
       });
 
       setEditDialogOpen(false);
@@ -230,6 +221,7 @@ const UserManagementEnhanced = () => {
         toast({
           title: 'Permissões atualizadas',
           description: 'Usuário removido como administrador.',
+          variant: 'default', // Corrected variant
         });
       } else {
         const { error } = await supabase
@@ -248,6 +240,7 @@ const UserManagementEnhanced = () => {
         toast({
           title: 'Permissões atualizadas',
           description: 'Usuário promovido a administrador.',
+          variant: 'default', // Corrected variant
         });
       }
 
@@ -288,7 +281,7 @@ const UserManagementEnhanced = () => {
 
       await logAudit({
         action: 'UPDATE',
-        table_name: 'users',
+        table_name: 'profiles',
         record_id: profile.id,
         details: { is_approved: newApprovalStatus, initial_payment_status: newPaymentStatus },
       });
@@ -296,7 +289,7 @@ const UserManagementEnhanced = () => {
       toast({
         title: 'Status de Aprovação Atualizado',
         description: `Usuário ${profile.full_name} foi ${newApprovalStatus ? 'aprovado' : 'desaprovado'}.`,
-        variant: newApprovalStatus ? 'success' : 'destructive',
+        variant: 'default', // Corrected variant
       });
 
       fetchProfiles(); // Re-fetch profiles to update UI
@@ -327,6 +320,7 @@ const UserManagementEnhanced = () => {
       toast({
         title: 'Usuário excluído',
         description: 'O usuário foi removido com sucesso.',
+        variant: 'default', // Corrected variant
       });
 
       fetchProfiles();
@@ -500,7 +494,7 @@ const UserManagementEnhanced = () => {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={profile.is_approved ? 'success' : (profile.initial_payment_status === 'pending' ? 'warning' : 'destructive')}>
+                    <Badge variant={profile.is_approved ? 'default' : (profile.initial_payment_status === 'pending' ? 'secondary' : 'destructive')}>
                       {profile.is_approved ? 'Aprovado' : (profile.initial_payment_status === 'pending' ? 'Pagamento Pendente' : 'Não Aprovado')}
                     </Badge>
                   </TableCell>
@@ -528,7 +522,7 @@ const UserManagementEnhanced = () => {
                       {profile.is_approved ? (
                         <XCircle className="h-4 w-4 text-destructive" />
                       ) : (
-                        <CheckCircle className="h-4 w-4 text-success" />
+                        <CheckCircle className="h-4 w-4 text-default" />
                       )}
                     </Button>
                     <Button

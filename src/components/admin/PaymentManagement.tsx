@@ -11,23 +11,10 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Trash2, Edit, DollarSign, CalendarPlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { logAudit } from '@/lib/auditLogger';
+import { Tables } from '@/integrations/supabase/types'; // Import Tables type
 
-interface Payment {
-  id: string;
-  user_id: string;
-  amount: number;
-  status: 'pending' | 'paid' | 'overdue';
-  due_date: string;
-  paid_at: string | null;
-  payment_type: 'initial' | 'recurring';
-  description: string | null;
-  user_full_name?: string; // Adicionado para armazenar o nome do usuário
-}
-
-interface Profile {
-  id: string;
-  full_name: string;
-}
+type Payment = Tables<'payments'> & { user_full_name?: string };
+type Profile = Tables<'profiles'>;
 
 const PaymentManagement = () => {
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -39,8 +26,8 @@ const PaymentManagement = () => {
     user_id: '',
     amount: '',
     due_date: '',
-    status: 'pending',
-    payment_type: 'recurring',
+    status: 'pending' as Tables<'payments'>['status'], // Explicitly type status
+    payment_type: 'recurring' as Tables<'payments'>['payment_type'], // Explicitly type payment_type
     description: '',
   });
   const { toast } = useToast();
@@ -89,7 +76,7 @@ const PaymentManagement = () => {
       console.error('Error fetching payments:', error);
       toast({
         title: 'Erro ao carregar pagamentos',
-        description: error.message || 'Tente novamente mais tarde', // Use error.message for more detail
+        description: error.message || 'Tente novamente mais tarde',
         variant: 'destructive',
       });
     } finally {
@@ -129,7 +116,7 @@ const PaymentManagement = () => {
     setLoading(true);
 
     try {
-      const paymentData = {
+      const paymentData: Tables<'payments', 'Insert'> = {
         user_id: formData.user_id,
         amount: parseFloat(formData.amount),
         due_date: formData.due_date,
@@ -168,6 +155,7 @@ const PaymentManagement = () => {
         toast({
           title: 'Sucesso',
           description: 'Pagamento atualizado com sucesso',
+          variant: 'default', // Corrected variant
         });
       } else {
         const { data, error } = await supabase
@@ -188,6 +176,7 @@ const PaymentManagement = () => {
         toast({
           title: 'Sucesso',
           description: 'Pagamento criado com sucesso',
+          variant: 'default', // Corrected variant
         });
       }
 
@@ -222,6 +211,7 @@ const PaymentManagement = () => {
       toast({
         title: 'Sucesso',
         description: 'Pagamento excluído com sucesso',
+        variant: 'default', // Corrected variant
       });
       fetchPayments();
     } catch (error) {
@@ -246,7 +236,7 @@ const PaymentManagement = () => {
       if (usersError) throw usersError;
 
       if (!activeUsers || activeUsers.length === 0) {
-        toast({ title: 'Nenhum usuário ativo', description: 'Não há usuários aprovados para gerar mensalidades.', variant: 'warning' });
+        toast({ title: 'Nenhum usuário ativo', description: 'Não há usuários aprovados para gerar mensalidades.', variant: 'default' }); // Corrected variant
         setLoading(false);
         return;
       }
@@ -255,7 +245,7 @@ const PaymentManagement = () => {
       nextMonth.setMonth(nextMonth.getMonth() + 1);
       nextMonth.setDate(10); // Set due date to 10th of next month
 
-      const paymentsToInsert = activeUsers.map(user => ({
+      const paymentsToInsert: Tables<'payments', 'Insert'>[] = activeUsers.map(user => ({
         user_id: user.id,
         amount: 120.00,
         due_date: nextMonth.toISOString().split('T')[0], // YYYY-MM-DD
@@ -279,7 +269,7 @@ const PaymentManagement = () => {
       toast({
         title: 'Mensalidades geradas!',
         description: `${paymentsToInsert.length} pagamentos recorrentes foram criados para o próximo mês.`,
-        variant: 'success',
+        variant: 'default', // Corrected variant
       });
       fetchPayments();
     } catch (error: any) {
@@ -294,30 +284,26 @@ const PaymentManagement = () => {
     }
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: Tables<'payments'>['status']) => {
     const statusMap = {
       paid: { label: 'Pago', variant: 'default' as const },
       pending: { label: 'Pendente', variant: 'secondary' as const },
       overdue: { label: 'Atrasado', variant: 'destructive' as const },
     };
     
-    const statusInfo = statusMap[status as keyof typeof statusMap] || { label: status, variant: 'secondary' as const };
+    const statusInfo = statusMap[status] || { label: status, variant: 'secondary' as const };
     
     return <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>;
   };
 
-  const getPaymentTypeBadge = (type: string) => {
+  const getPaymentTypeBadge = (type: Tables<'payments'>['payment_type']) => {
     const typeMap = {
       initial: { label: 'Adesão', variant: 'outline' as const },
       recurring: { label: 'Mensalidade', variant: 'default' as const },
     };
-    const typeInfo = typeMap[type as keyof typeof typeMap] || { label: type, variant: 'secondary' as const };
+    const typeInfo = typeMap[type] || { label: type, variant: 'secondary' as const };
     return <Badge variant={typeInfo.variant}>{typeInfo.label}</Badge>;
   };
-
-  if (loading) {
-    return <div className="text-center py-8">Carregando pagamentos...</div>;
-  }
 
   return (
     <Card>
@@ -397,7 +383,7 @@ const PaymentManagement = () => {
                     <Label htmlFor="status">Status</Label>
                     <Select
                       value={formData.status}
-                      onValueChange={(value) => setFormData({ ...formData, status: value })}
+                      onValueChange={(value) => setFormData({ ...formData, status: value as Tables<'payments'>['status'] })}
                     >
                       <SelectTrigger>
                         <SelectValue />
@@ -414,7 +400,7 @@ const PaymentManagement = () => {
                     <Label htmlFor="payment_type">Tipo de Pagamento</Label>
                     <Select
                       value={formData.payment_type}
-                      onValueChange={(value) => setFormData({ ...formData, payment_type: value as 'initial' | 'recurring' })}
+                      onValueChange={(value) => setFormData({ ...formData, payment_type: value as Tables<'payments'>['payment_type'] })}
                       disabled={!!editingPayment}
                     >
                       <SelectTrigger>
@@ -467,7 +453,7 @@ const PaymentManagement = () => {
           <TableBody>
             {payments.map((payment) => (
               <TableRow key={payment.id}>
-                <TableCell>{payment.user_full_name || 'N/A'}</TableCell> {/* Usando o novo campo */}
+                <TableCell>{payment.user_full_name || 'N/A'}</TableCell>
                 <TableCell>{getPaymentTypeBadge(payment.payment_type)}</TableCell>
                 <TableCell>{payment.description || '-'}</TableCell>
                 <TableCell>R$ {parseFloat(payment.amount.toString()).toFixed(2)}</TableCell>
