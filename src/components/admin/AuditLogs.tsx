@@ -29,13 +29,11 @@ const AuditLogs = ({ refetchTrigger }: AuditLogsProps) => {
   const { toast } = useToast();
 
   useEffect(() => {
-    console.log('[AuditLogs] useEffect triggered, refetchTrigger:', refetchTrigger);
     fetchLogs();
   }, [refetchTrigger]);
 
   const fetchLogs = async () => {
     setLoading(true);
-    console.log('[AuditLogs] Starting fetchLogs...');
     try {
       const { data, error } = await supabase
         .from('admin_logs')
@@ -43,11 +41,7 @@ const AuditLogs = ({ refetchTrigger }: AuditLogsProps) => {
         .order('created_at', { ascending: false })
         .limit(100);
 
-      console.log('[AuditLogs] Supabase response - data:', data);
-      console.log('[AuditLogs] Supabase response - error:', error);
-
       if (error) {
-        console.error('[AuditLogs] Error fetching audit logs from Supabase:', error);
         throw error;
       }
 
@@ -75,10 +69,8 @@ const AuditLogs = ({ refetchTrigger }: AuditLogsProps) => {
         })
       );
 
-      console.log('[AuditLogs] Processed logs with profiles:', logsWithProfiles);
       setLogs(logsWithProfiles);
     } catch (error: any) {
-      console.error('[AuditLogs] Error in fetchLogs:', error);
       toast({
         title: 'Erro ao carregar logs de auditoria',
         description: error.message,
@@ -86,7 +78,6 @@ const AuditLogs = ({ refetchTrigger }: AuditLogsProps) => {
       });
     } finally {
       setLoading(false);
-      console.log('[AuditLogs] fetchLogs finished. Current logs state length:', logs.length);
     }
   };
 
