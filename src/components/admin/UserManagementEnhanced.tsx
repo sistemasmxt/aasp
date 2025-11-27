@@ -10,14 +10,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'; // Import Select components
 import { logAudit } from '@/lib/auditLogger';
-import { Tables } from '@/integrations/supabase/types';
+import { Tables, Constants } from '@/integrations/supabase/types'; // Import Constants for enums
 import { userSchema } from '@/lib/validationSchemas'; // Import userSchema
 import { z } from 'zod';
 import { mapErrorToUserMessage } from '@/lib/errorHandler';
 
 type Profile = Tables<'profiles'>;
 type UserRole = Tables<'user_roles'>;
+type InitialPaymentStatus = Constants['public']['Enums']['initial_payment_status_enum'];
 
 interface UserManagementEnhancedProps {
   onAuditLogSuccess: () => void;
@@ -30,7 +32,13 @@ const UserManagementEnhanced = ({ onAuditLogSuccess }: UserManagementEnhancedPro
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null);
-  const [editForm, setEditForm] = useState({ full_name: '', phone: '', address: '' });
+  const [editForm, setEditForm] = useState({
+    full_name: '',
+    phone: '',
+    address: '',
+    is_approved: false,
+    initial_payment_status: 'unpaid' as InitialPaymentStatus,
+  });
   const [createForm, setCreateForm] = useState({
     email: '',
     password: '',
@@ -184,6 +192,8 @@ const UserManagementEnhanced = ({ onAuditLogSuccess }: UserManagementEnhancedPro
       full_name: profile.full_name,
       phone: profile.phone || '',
       address: profile.address || '',
+      is_approved: profile.is_approved,
+      initial_payment_status: profile.initial_payment_status,
     });
     setEditDialogOpen(true);
   };
@@ -198,7 +208,13 @@ const UserManagementEnhanced = ({ onAuditLogSuccess }: UserManagementEnhancedPro
 
       const { error } = await supabase
         .from('profiles')
-        .update(validatedData)
+        .update({
+          full_name: validatedData.full_name,
+          phone: validatedData.phone || null,
+          address: validatedData.address || null,
+          is_approved: validatedData.is_approved,
+          initial_payment_status: validatedData.initial_payment_status,
+        })
         .eq('id', selectedProfile.id);
 
       if (error) throw error;
@@ -505,6 +521,41 @@ const UserManagementEnhanced = ({ onAuditLogSuccess }: UserManagementEnhancedPro
                 value={editForm.address}
                 onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="is_approved">Aprovado</Label>
+              <Checkbox
+                id="is_approved"
+                checked={editForm.is_approved}
+                onCheckedChange={(checked) => {
+                  const newApprovedStatus = checked as boolean;
+                  setEditForm(prev => ({
+                    ...prev,
+                    is_approved: newApprovedStatus,
+                    initial_payment_status: newApprovedStatus ? 'paid' : 'unpaid',
+                  }));
+                }}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="initial_payment_status">Status Pagamento Inicial</Label>
+              <Select
+                value={editForm.initial_payment_status}
+                onValueChange={(value: InitialPaymentStatus) => setEditForm(prev => ({
+                  ...prev,
+                  initial_payment_status: value,
+                  is_approved: value === 'paid' ? true : prev.is_approved, // If paid, mark as approved
+                }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unpaid">Não Pago</SelectItem>
+                  <SelectItem value="pending">Pendente</SelectItem>
+                  <SelectItem value="paid">Pago</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
