@@ -153,29 +153,51 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
 
     setSending(true);
     try {
-      // --- NEW PRE-CHECK FOR USER APPROVAL ---
+      // Fetch sender's role
+      const { data: roleData, error: roleError } = await supabase.rpc('has_role', {
+        _user_id: currentUserId,
+        _role: 'admin'
+      });
+
+      if (roleError) {
+        console.error('Error fetching sender role:', roleError);
+        throw new Error('Não foi possível verificar suas permissões.');
+      }
+
+      const isSenderAdmin = roleData;
+
+      // Fetch sender's approval status
       const { data: senderProfile, error: senderError } = await supabase
         .from('profiles')
         .select('is_approved')
         .eq('id', currentUserId)
         .single();
 
-      const { data: receiverProfile, error: receiverError } = await supabase
-        .from('profiles')
-        .select('is_approved')
-        .eq('id', recipientId)
-        .single();
-
-      if (senderError || receiverError) {
-        console.error('Error fetching approval status:', senderError || receiverError);
-        throw new Error('Não foi possível verificar o status de aprovação dos usuários.');
+      if (senderError) {
+        console.error('Error fetching sender approval status:', senderError);
+        throw new Error('Não foi possível verificar seu status de aprovação.');
       }
 
       if (!senderProfile?.is_approved) {
         throw new Error('Você precisa ser aprovado para enviar mensagens.');
       }
-      if (!receiverProfile?.is_approved) {
-        throw new Error('O destinatário ainda não foi aprovado e não pode receber mensagens.');
+
+      // Only check receiver's approval if sender is NOT an admin
+      if (!isSenderAdmin) {
+        const { data: receiverProfile, error: receiverError } = await supabase
+          .from('profiles')
+          .select('is_approved')
+          .eq('id', recipientId)
+          .single();
+
+        if (receiverError) {
+          console.error('Error fetching receiver approval status:', receiverError);
+          throw new Error('Não foi possível verificar o status de aprovação do destinatário.');
+        }
+
+        if (!receiverProfile?.is_approved) {
+          throw new Error('O destinatário ainda não foi aprovado e não pode receber mensagens.');
+        }
       }
       // --- END NEW PRE-CHECK ---
 
