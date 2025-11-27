@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Users, Shield, ShieldOff, Pencil, Plus, Trash2, CheckCircle, XCircle, Loader2, Upload, Save, MapPin, Settings } from 'lucide-react';
+import { Users, Shield, ShieldOff, Pencil, Plus, Trash2, CheckCircle, XCircle, Loader2, Upload, Save, MapPin, Key, Mail } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -42,6 +42,7 @@ const UserManagementEnhanced = ({ onAuditLogSuccess }: UserManagementEnhancedPro
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null);
+  const [selectedUserEmail, setSelectedUserEmail] = useState<string | null>(null); // To store user email for password reset
   
   // Edit Form State
   const [editForm, setEditForm] = useState({
@@ -187,13 +188,6 @@ const UserManagementEnhanced = ({ onAuditLogSuccess }: UserManagementEnhancedPro
       };
 
       img.src = URL.createObjectURL(file);
-
-      setTimeout(() => {
-        resolve({
-          isValid: false,
-          error: "Timeout ao validar imagem. Tente novamente."
-        });
-      }, 10000);
     });
   };
 
@@ -261,13 +255,6 @@ const UserManagementEnhanced = ({ onAuditLogSuccess }: UserManagementEnhancedPro
       };
 
       img.src = URL.createObjectURL(file);
-
-      setTimeout(() => {
-        resolve({
-          isValid: false,
-          error: "Timeout ao validar imagem. Tente novamente."
-        });
-      }, 10000);
     });
   };
 
@@ -500,7 +487,7 @@ const UserManagementEnhanced = ({ onAuditLogSuccess }: UserManagementEnhancedPro
     }
   };
 
-  const handleEditUser = (profile: Profile) => {
+  const handleEditUser = async (profile: Profile) => {
     setSelectedProfile(profile);
     setEditForm({
       full_name: profile.full_name,
@@ -519,6 +506,16 @@ const UserManagementEnhanced = ({ onAuditLogSuccess }: UserManagementEnhancedPro
       estado: '',
       pais: 'Brasil',
     });
+
+    // Fetch user email for password reset functionality
+    const { data: userData, error: userError } = await supabase.auth.admin.getUserById(profile.id);
+    if (userError) {
+      console.error('Error fetching user email:', userError);
+      setSelectedUserEmail(null);
+    } else {
+      setSelectedUserEmail(userData.user?.email || null);
+    }
+
     setEditDialogOpen(true);
   };
 
@@ -585,6 +582,47 @@ const UserManagementEnhanced = ({ onAuditLogSuccess }: UserManagementEnhancedPro
           variant: 'destructive',
         });
       }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!selectedUserEmail) {
+      toast({
+        title: 'Erro',
+        description: 'E-mail do usuário não encontrado para redefinição de senha.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(selectedUserEmail, {
+        redirectTo: `${window.location.origin}/auth?reset=true`, // Redirect to auth page with reset param
+      });
+
+      if (error) throw error;
+
+      await logAudit({
+        action: 'UPDATE',
+        table_name: 'auth.users', // Log against auth.users table
+        record_id: selectedProfile?.id,
+        details: { action: 'password_reset_email_sent', email: selectedUserEmail },
+      });
+
+      toast({
+        title: 'Link de redefinição enviado!',
+        description: `Um e-mail para redefinir a senha foi enviado para ${selectedUserEmail}.`,
+        variant: 'default',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao enviar link de redefinição',
+        description: mapErrorToUserMessage(error),
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }
@@ -835,7 +873,7 @@ const UserManagementEnhanced = ({ onAuditLogSuccess }: UserManagementEnhancedPro
           <Tabs defaultValue="profile" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="profile">Dados Pessoais</TabsTrigger>
-              <TabsTrigger value="settings" disabled>Configurações</TabsTrigger> {/* Dummy tab */}
+              <TabsTrigger value="settings">Configurações</TabsTrigger>
             </TabsList>
 
             <TabsContent value="profile" className="space-y-6">
@@ -1057,8 +1095,28 @@ const UserManagementEnhanced = ({ onAuditLogSuccess }: UserManagementEnhancedPro
                 </Button>
               </div>
             </TabsContent>
-            <TabsContent value="settings">
-                <p className="text-muted-foreground">Configurações adicionais virão aqui.</p>
+
+            <TabsContent value="settings" className="space-y-6">
+              <Card className="p-6">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Key className="h-5 w-5" />
+                    <h3 className="text-lg font-medium">Redefinição de Senha</h3>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Envie um link de redefinição de senha para o e-mail do usuário.
+                  </p>
+                  <p className="text-sm text-muted-foreground font-medium">
+                    E-mail do usuário: {selectedUserEmail || 'N/A'}
+                  </p>
+                  <div className="flex justify-end">
+                    <Button onClick={handleResetPassword} disabled={loading || !selectedUserEmail}>
+                      <Mail className="h-4 w-4 mr-2" />
+                      {loading ? 'Enviando...' : 'Enviar Link de Redefinição'}
+                    </Button>
+                  </div>
+                </div>
+              </Card>
             </TabsContent>
           </Tabs>
         </DialogContent>
