@@ -5,17 +5,26 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Users, Shield, ShieldOff, Pencil, Plus, Trash2, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { Users, Shield, ShieldOff, Pencil, Plus, Trash2, CheckCircle, XCircle, Loader2, Upload, Save, MapPin } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'; // Import Select components
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Textarea } from '@/components/ui/textarea'; // Import Textarea for consistency, though not used for address here
 import { logAudit } from '@/lib/auditLogger';
-import { Tables, Constants } from '@/integrations/supabase/types'; // Import Constants for enums
-import { userSchema } from '@/lib/validationSchemas'; // Import userSchema
+import { Tables, Constants } from '@/integrations/supabase/types';
+import { userSchema } from '@/lib/validationSchemas';
 import { z } from 'zod';
 import { mapErrorToUserMessage } from '@/lib/errorHandler';
+import {
+  fetchAddressByCep,
+  BRAZILIAN_STATES,
+  formatAddressForStorage,
+  parseAddressFromStorage,
+  type AddressFormData
+} from "@/lib/addressService";
 
 type Profile = Tables<'profiles'>;
 type UserRole = Tables<'user_roles'>;
@@ -32,13 +41,27 @@ const UserManagementEnhanced = ({ onAuditLogSuccess }: UserManagementEnhancedPro
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null);
+  
+  // Edit Form State
   const [editForm, setEditForm] = useState({
     full_name: '',
     phone: '',
-    address: '',
     is_approved: false,
     initial_payment_status: 'unpaid' as InitialPaymentStatus,
   });
+  const [addressData, setAddressData] = useState<AddressFormData>({
+    rua: '',
+    complemento: '',
+    bairro: '',
+    cep: '',
+    cidade: '',
+    estado: '',
+    pais: 'Brasil',
+  });
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+
+  // Create Form State
   const [createForm, setCreateForm] = useState({
     email: '',
     password: '',
@@ -92,12 +115,297 @@ const UserManagementEnhanced = ({ onAuditLogSuccess }: UserManagementEnhancedPro
     }
   };
 
+  const resizeImage = async (file: File): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      console.log('🖼️ Starting image resize for file:', {
+        name: file.name,
+        size: (file.size / 1024).toFixed(0) + 'KB',
+        type: file.type
+      });
+
+      const maxAllowedSize = 500 * 1024; // 500KB
+      if (file.size <= maxAllowedSize) {
+        console.log('✅ File already small enough, no resize needed');
+        resolve(file);
+        return;
+      }
+
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+
+      img.onload = () => {
+        try {
+          let { width, height } = img;
+          const maxDimension = 800;
+
+          if (width > height) {
+            if (width > maxDimension) {
+              height = (height * maxDimension) / width;
+              width = maxDimension;
+            }
+          } else {
+            if (height > maxDimension) {
+              width = (width * maxDimension) / height;
+              height = maxDimension;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          ctx?.drawImage(img, 0, 0, width, height);
+
+          canvas.toBlob((blob) => {
+            if (!blob) {
+              reject(new Error('Falha ao redimensionar imagem'));
+              return;
+            }
+
+            const resizedFile = new File([blob], file.name.replace(/\.[^/.]+$/, '.jpg'), {
+              type: 'image/jpeg',
+              lastModified: Date.now()
+            });
+
+            console.log('✅ Image resized successfully:', {
+              originalSize: (file.size / 1024).toFixed(0) + 'KB',
+              resizedSize: (resizedFile.size / 1024).toFixed(0) + 'KB',
+              dimensions: `${width}x${height}`
+            });
+
+            resolve(resizedFile);
+          }, 'image/jpeg', 0.85);
+
+        } catch (error) {
+          console.error('❌ Canvas resize failed:', error);
+          reject(new Error('Falha ao redimensionar a imagem'));
+        }
+      };
+
+      img.onerror = () => {
+        reject(new Error('Imagem corrompida ou formato não suportado'));
+      };
+
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
+  const validateImageFile = async (file: File): Promise<{ isValid: boolean; error?: string }> => {
+    return new Promise((resolve) => {
+      const fileName = file.name.toLowerCase();
+      const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+      const hasValidExtension = allowedExtensions.some(ext => fileName.endsWith(ext));
+
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+      const hasValidType = allowedTypes.includes(file.type);
+
+      if (!hasValidType && !hasValidExtension) {
+        resolve({
+          isValid: false,
+          error: "Formato não suportado. Selecione apenas arquivos JPG, PNG, GIF ou WebP."
+        });
+        return;
+      }
+
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (file.size > maxSize) {
+        resolve({
+          isValid: false,
+          error: "Arquivo muito grande. O arquivo deve ter no máximo 10MB."
+        });
+        return;
+      }
+
+      const minSize = 1024; // 1KB
+      if (file.size < minSize) {
+        resolve({
+          isValid: false,
+          error: "Arquivo muito pequeno. A imagem parece estar corrompida."
+        });
+        return;
+      }
+
+      const img = new Image();
+      img.onload = () => {
+        if (img.width === 0 || img.height === 0) {
+          resolve({
+            isValid: false,
+            error: "Imagem inválida. As dimensões da imagem são zero."
+          });
+          return;
+        }
+
+        if (img.width > 10000 || img.height > 10000) {
+          resolve({
+            isValid: false,
+            error: "Imagem muito grande. Dimensões máximas permitidas: 10000x10000 pixels."
+          });
+          return;
+        }
+
+        resolve({ isValid: true });
+      };
+
+      img.onerror = () => {
+        resolve({
+          isValid: false,
+          error: "Arquivo não é uma imagem válida ou está corrompido."
+        });
+      };
+
+      img.src = URL.createObjectURL(file);
+
+      setTimeout(() => {
+        resolve({
+          isValid: false,
+          error: "Timeout ao validar imagem. Tente novamente."
+        });
+      }, 10000);
+    });
+  };
+
+  const handleAvatarChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    console.log('📁 File selected:', {
+      name: file.name,
+      size: (file.size / 1024).toFixed(0) + 'KB',
+      type: file.type,
+      extension: file.name.split('.').pop()?.toLowerCase()
+    });
+
+    const validation = await validateImageFile(file);
+    if (!validation.isValid) {
+      toast({
+        title: "Erro na validação",
+        description: validation.error,
+        variant: "destructive",
+      });
+      event.target.value = '';
+      return;
+    }
+
+    try {
+      toast({
+        title: "Processando imagem...",
+        description: "Otimizando imagem para upload",
+      });
+
+      const processedFile = await resizeImage(file);
+
+      const maxProcessedSize = 500 * 1024; // 500KB
+      if (processedFile.size > maxProcessedSize) {
+        console.error('❌ File too large after resize:', processedFile.size);
+        toast({
+          title: "Imagem muito grande após redimensionamento",
+          description: `Tamanho final: ${(processedFile.size / 1024).toFixed(0)}KB. Máximo permitido: 500KB. Tente uma imagem menor ou com menor resolução.`,
+          variant: "destructive",
+        });
+        event.target.value = '';
+        return;
+      }
+
+      const minProcessedSize = 1024; // 1KB
+      if (processedFile.size < minProcessedSize) {
+        console.error('❌ File too small after compression:', processedFile.size);
+        toast({
+          title: "Imagem muito pequena após otimização",
+          description: "A imagem otimizada parece estar corrompida. Tente novamente com outra imagem.",
+          variant: "destructive",
+        });
+        event.target.value = '';
+        return;
+      }
+
+      console.log('✅ File validation passed, setting avatar file');
+      setAvatarFile(processedFile);
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setAvatarPreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(processedFile);
+
+      toast({
+        title: "Imagem processada!",
+        description: `Imagem otimizada: ${(processedFile.size / 1024).toFixed(0)}KB`,
+      });
+
+    } catch (error) {
+      console.error('❌ Error processing image:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      toast({
+        title: "Erro ao processar imagem",
+        description: errorMessage.includes('comprimir') ? errorMessage : "Não foi possível otimizar a imagem. Verifique se o arquivo não está corrompido e tente novamente.",
+        variant: "destructive",
+      });
+      event.target.value = '';
+    }
+  };
+
+  const uploadAvatar = async (userId: string): Promise<string | null> => {
+    if (!avatarFile) return selectedProfile?.avatar_url || null;
+
+    try {
+      console.log('📤 Uploading avatar to Supabase Storage:', {
+        size: avatarFile.size,
+        type: avatarFile.type,
+        name: avatarFile.name
+      });
+
+      // Delete old avatar if exists
+      if (selectedProfile?.avatar_url) {
+        const oldPath = selectedProfile.avatar_url.split('/avatars/')[1];
+        if (oldPath) {
+          const { error: deleteError } = await supabase.storage
+            .from('avatars')
+            .remove([oldPath]);
+          
+          if (deleteError) {
+            console.warn('⚠️ Error deleting old avatar:', deleteError);
+          } else {
+            console.log('✅ Old avatar deleted');
+          }
+        }
+      }
+
+      const timestamp = Date.now();
+      const fileExtension = avatarFile.name.split('.').pop() || 'jpg';
+      const filePath = `${userId}/${timestamp}.${fileExtension}`;
+
+      const { data, error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, avatarFile, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType: avatarFile.type
+        });
+
+      if (uploadError) {
+        console.error('❌ Upload error:', uploadError);
+        throw new Error(`Erro no upload: ${uploadError.message}`);
+      }
+
+      console.log('✅ Upload successful:', data);
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      console.log('✅ Public URL generated:', publicUrl);
+      return publicUrl;
+
+    } catch (error) {
+      console.error('❌ Avatar upload error:', error);
+      throw error;
+    }
+  };
+
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      // Validate input using Zod schema
       const validatedData = userSchema.extend({
         email: z.string().email('Email inválido'),
         password: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres'),
@@ -118,21 +426,19 @@ const UserManagementEnhanced = ({ onAuditLogSuccess }: UserManagementEnhancedPro
       if (authError) throw authError;
 
       if (user) {
-        // Update profile with additional info
         const { error: profileError } = await supabase
           .from('profiles')
           .update({
             full_name: validatedData.full_name,
             phone: validatedData.phone || null,
             address: validatedData.address || null,
-            is_approved: validatedData.is_admin, // Admins are approved by default
+            is_approved: validatedData.is_admin,
             initial_payment_status: validatedData.is_admin ? 'paid' : 'unpaid',
           })
           .eq('id', user.id);
 
         if (profileError) throw profileError;
 
-        // Add admin role if selected
         if (validatedData.is_admin) {
           const { error: roleError } = await supabase
             .from('user_roles')
@@ -143,7 +449,7 @@ const UserManagementEnhanced = ({ onAuditLogSuccess }: UserManagementEnhancedPro
 
         await logAudit({
           action: 'CREATE',
-          table_name: 'profiles', // Changed from 'users' to 'profiles' for consistency
+          table_name: 'profiles',
           record_id: user.id,
           details: { email: validatedData.email, full_name: validatedData.full_name, is_admin: validatedData.is_admin },
         });
@@ -165,7 +471,7 @@ const UserManagementEnhanced = ({ onAuditLogSuccess }: UserManagementEnhancedPro
         });
         fetchProfiles();
         fetchUserRoles();
-        onAuditLogSuccess(); // Trigger refetch for audit logs
+        onAuditLogSuccess();
       }
     } catch (error: any) {
       if (error instanceof z.ZodError) {
@@ -191,9 +497,19 @@ const UserManagementEnhanced = ({ onAuditLogSuccess }: UserManagementEnhancedPro
     setEditForm({
       full_name: profile.full_name,
       phone: profile.phone || '',
-      address: profile.address || '',
       is_approved: profile.is_approved,
       initial_payment_status: profile.initial_payment_status,
+    });
+    setAvatarPreview(profile.avatar_url || null);
+    setAvatarFile(null); // Reset file input
+    setAddressData(profile.address ? parseAddressFromStorage(profile.address) : {
+      rua: '',
+      complemento: '',
+      bairro: '',
+      cep: '',
+      cidade: '',
+      estado: '',
+      pais: 'Brasil',
     });
     setEditDialogOpen(true);
   };
@@ -203,17 +519,29 @@ const UserManagementEnhanced = ({ onAuditLogSuccess }: UserManagementEnhancedPro
 
     setLoading(true);
     try {
-      // Validate input using Zod schema (excluding email and password for update)
-      const validatedData = userSchema.omit({ email: true, password: true }).parse(editForm);
+      let avatarUrl = selectedProfile.avatar_url;
+
+      if (avatarFile) {
+        avatarUrl = await uploadAvatar(selectedProfile.id);
+      }
+
+      const formattedAddress = formatAddressForStorage(addressData);
+
+      const validatedData = userSchema.omit({ email: true, password: true }).parse({
+        ...editForm,
+        address: formattedAddress,
+      });
 
       const { error } = await supabase
         .from('profiles')
         .update({
           full_name: validatedData.full_name,
           phone: validatedData.phone || null,
-          address: validatedData.address || null,
+          address: formattedAddress,
+          avatar_url: avatarUrl,
           is_approved: validatedData.is_approved,
           initial_payment_status: validatedData.initial_payment_status,
+          updated_at: new Date().toISOString(),
         })
         .eq('id', selectedProfile.id);
 
@@ -223,7 +551,7 @@ const UserManagementEnhanced = ({ onAuditLogSuccess }: UserManagementEnhancedPro
         action: 'UPDATE',
         table_name: 'profiles',
         record_id: selectedProfile.id,
-        details: validatedData,
+        details: { ...validatedData, avatar_url: avatarUrl },
       });
 
       toast({
@@ -234,7 +562,7 @@ const UserManagementEnhanced = ({ onAuditLogSuccess }: UserManagementEnhancedPro
 
       setEditDialogOpen(false);
       fetchProfiles();
-      onAuditLogSuccess(); // Trigger refetch for audit logs
+      onAuditLogSuccess();
     } catch (error: any) {
       if (error instanceof z.ZodError) {
         toast({
@@ -300,7 +628,7 @@ const UserManagementEnhanced = ({ onAuditLogSuccess }: UserManagementEnhancedPro
       }
 
       fetchUserRoles();
-      onAuditLogSuccess(); // Trigger refetch for audit logs
+      onAuditLogSuccess();
     } catch (error: any) {
       toast({
         title: 'Erro ao atualizar permissões',
@@ -325,14 +653,13 @@ const UserManagementEnhanced = ({ onAuditLogSuccess }: UserManagementEnhancedPro
 
       if (error) throw error;
 
-      // Also update the initial payment record if it exists
       if (newApprovalStatus) {
         const { data: initialPayment, error: paymentError } = await supabase
           .from('payments')
           .update({ status: 'paid', paid_at: new Date().toISOString() })
           .eq('user_id', profile.id)
           .eq('payment_type', 'initial')
-          .eq('status', 'pending'); // Only update pending initial payments
+          .eq('status', 'pending');
         
         if (paymentError) console.error("Error updating initial payment status:", paymentError);
       }
@@ -351,8 +678,8 @@ const UserManagementEnhanced = ({ onAuditLogSuccess }: UserManagementEnhancedPro
         variant: 'default',
       });
 
-      fetchProfiles(); // Re-fetch profiles to update UI
-      onAuditLogSuccess(); // Trigger refetch for audit logs
+      fetchProfiles();
+      onAuditLogSuccess();
     } catch (error: any) {
       toast({
         title: 'Erro ao atualizar aprovação',
@@ -369,14 +696,13 @@ const UserManagementEnhanced = ({ onAuditLogSuccess }: UserManagementEnhancedPro
 
     setLoading(true);
     try {
-      // First delete from auth (this will cascade to profiles via trigger)
       const { error } = await supabase.auth.admin.deleteUser(userId);
 
       if (error) throw error;
 
       await logAudit({
         action: 'DELETE',
-        table_name: 'profiles', // Changed from 'users' to 'profiles' for consistency
+        table_name: 'profiles',
         record_id: userId,
       });
 
@@ -388,7 +714,7 @@ const UserManagementEnhanced = ({ onAuditLogSuccess }: UserManagementEnhancedPro
 
       fetchProfiles();
       fetchUserRoles();
-      onAuditLogSuccess(); // Trigger refetch for audit logs
+      onAuditLogSuccess();
     } catch (error: any) {
       toast({
         title: 'Erro ao excluir usuário',
@@ -493,79 +819,237 @@ const UserManagementEnhanced = ({ onAuditLogSuccess }: UserManagementEnhancedPro
       </div>
 
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Editar Usuário</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="edit_name">Nome Completo</Label>
-              <Input
-                id="edit_name"
-                value={editForm.full_name}
-                onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit_phone">Telefone</Label>
-              <Input
-                id="edit_phone"
-                value={editForm.phone}
-                onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit_address">Endereço</Label>
-              <Input
-                id="edit_address"
-                value={editForm.address}
-                onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="is_approved">Aprovado</Label>
-              <Checkbox
-                id="is_approved"
-                checked={editForm.is_approved}
-                onCheckedChange={(checked) => {
-                  const newApprovedStatus = checked as boolean;
-                  setEditForm(prev => ({
-                    ...prev,
-                    is_approved: newApprovedStatus,
-                    initial_payment_status: newApprovedStatus ? 'paid' : 'unpaid',
-                  }));
-                }}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="initial_payment_status">Status Pagamento Inicial</Label>
-              <Select
-                value={editForm.initial_payment_status}
-                onValueChange={(value: InitialPaymentStatus) => setEditForm(prev => ({
-                  ...prev,
-                  initial_payment_status: value,
-                  is_approved: value === 'paid' ? true : prev.is_approved, // If paid, mark as approved
-                }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="unpaid">Não Pago</SelectItem>
-                  <SelectItem value="pending">Pendente</SelectItem>
-                  <SelectItem value="paid">Pago</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
-                Cancelar
-              </Button>
-              <Button onClick={handleUpdateUser} disabled={loading}>
-                {loading ? 'Salvando...' : 'Salvar'}
-              </Button>
-            </div>
-          </div>
+
+          <Tabs defaultValue="profile" className="w-full">
+            <TabsList className="grid w-full grid-cols-1"> {/* Only one tab for now */}
+              <TabsTrigger value="profile">Dados Pessoais</TabsTrigger>
+              {/* Password change for other users is complex and security-sensitive, omitted for now. */}
+            </TabsList>
+
+            <TabsContent value="profile" className="space-y-6">
+              {/* Avatar Section */}
+              <Card className="p-6">
+                <div className="flex flex-col items-center space-y-4">
+                  <Avatar className="w-24 h-24">
+                    <AvatarImage src={avatarPreview || ""} />
+                    <AvatarFallback className="text-2xl">
+                      {editForm.full_name?.charAt(0) || "U"}
+                    </AvatarFallback>
+                  </Avatar>
+
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                      onChange={handleAvatarChange}
+                      className="hidden"
+                      id="avatar-upload-admin"
+                      disabled={loading}
+                    />
+                    <Label
+                      htmlFor="avatar-upload-admin"
+                      className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md cursor-pointer hover:bg-primary/90"
+                    >
+                      <Upload className="h-4 w-4" />
+                      Alterar Foto
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      JPG, PNG, GIF ou WebP (máx. 10MB)
+                    </p>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Personal Information */}
+              <Card className="p-6">
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="edit_name">Nome Completo</Label>
+                    <Input
+                      id="edit_name"
+                      value={editForm.full_name}
+                      onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
+                      placeholder="Digite o nome completo"
+                      disabled={loading}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="edit_phone">Telefone</Label>
+                    <Input
+                      id="edit_phone"
+                      value={editForm.phone}
+                      onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                      placeholder="(11) 99999-9999"
+                      disabled={loading}
+                    />
+                  </div>
+
+                  {/* Address Fields */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-5 w-5" />
+                      <h3 className="text-lg font-medium">Endereço</h3>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="cep">CEP</Label>
+                        <Input
+                          id="cep"
+                          value={addressData.cep}
+                          onChange={async (e) => {
+                            const cep = e.target.value;
+                            setAddressData(prev => ({ ...prev, cep }));
+
+                            if (cep.length === 8 || cep.length === 9) {
+                              const addressInfo = await fetchAddressByCep(cep);
+                              if (addressInfo) {
+                                setAddressData(prev => ({
+                                  ...prev,
+                                  rua: addressInfo.logradouro,
+                                  bairro: addressInfo.bairro,
+                                  cidade: addressInfo.localidade,
+                                  estado: addressInfo.uf,
+                                }));
+                              }
+                            }
+                          }}
+                          placeholder="00000-000"
+                          disabled={loading}
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="rua">Rua</Label>
+                        <Input
+                          id="rua"
+                          value={addressData.rua}
+                          onChange={(e) => setAddressData(prev => ({ ...prev, rua: e.target.value }))}
+                          placeholder="Nome da rua"
+                          disabled={loading}
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="complemento">Complemento</Label>
+                        <Input
+                          id="complemento"
+                          value={addressData.complemento}
+                          onChange={(e) => setAddressData(prev => ({ ...prev, complemento: e.target.value }))}
+                          placeholder="Apartamento, bloco, etc."
+                          disabled={loading}
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="bairro">Bairro</Label>
+                        <Input
+                          id="bairro"
+                          value={addressData.bairro}
+                          onChange={(e) => setAddressData(prev => ({ ...prev, bairro: e.target.value }))}
+                          placeholder="Nome do bairro"
+                          disabled={loading}
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="cidade">Cidade</Label>
+                        <Input
+                          id="cidade"
+                          value={addressData.cidade}
+                          onChange={(e) => setAddressData(prev => ({ ...prev, cidade: e.target.value }))}
+                          placeholder="Nome da cidade"
+                          disabled={loading}
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="estado">Estado</Label>
+                        <Select
+                          value={addressData.estado}
+                          onValueChange={(value) => setAddressData(prev => ({ ...prev, estado: value }))}
+                          disabled={loading}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione o estado" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {BRAZILIAN_STATES.map((state) => (
+                              <SelectItem key={state.value} value={state.value}>
+                                {state.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div>
+                        <Label htmlFor="pais">País</Label>
+                        <Input
+                          id="pais"
+                          value={addressData.pais}
+                          onChange={(e) => setAddressData(prev => ({ ...prev, pais: e.target.value }))}
+                          placeholder="País"
+                          disabled={loading}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Admin-specific fields */}
+                  <div className="space-y-2">
+                    <Label htmlFor="is_approved">Aprovado</Label>
+                    <Checkbox
+                      id="is_approved"
+                      checked={editForm.is_approved}
+                      onCheckedChange={(checked) => {
+                        const newApprovedStatus = checked as boolean;
+                        setEditForm(prev => ({
+                          ...prev,
+                          is_approved: newApprovedStatus,
+                          initial_payment_status: newApprovedStatus ? 'paid' : 'unpaid',
+                        }));
+                      }}
+                      disabled={loading}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="initial_payment_status">Status Pagamento Inicial</Label>
+                    <Select
+                      value={editForm.initial_payment_status}
+                      onValueChange={(value: InitialPaymentStatus) => setEditForm(prev => ({
+                        ...prev,
+                        initial_payment_status: value,
+                        is_approved: value === 'paid' ? true : prev.is_approved,
+                      }))}
+                      disabled={loading}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="unpaid">Não Pago</SelectItem>
+                        <SelectItem value="pending">Pendente</SelectItem>
+                        <SelectItem value="paid">Pago</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </Card>
+
+              <div className="flex justify-end">
+                <Button onClick={handleUpdateUser} disabled={loading}>
+                  <Save className="h-4 w-4 mr-2" />
+                  {loading ? 'Salvando...' : 'Salvar Alterações'}
+                </Button>
+              </div>
+            </TabsContent>
+          </Tabs>
         </DialogContent>
       </Dialog>
 
@@ -621,7 +1105,7 @@ const UserManagementEnhanced = ({ onAuditLogSuccess }: UserManagementEnhancedPro
                       variant="ghost"
                       size="sm"
                       onClick={() => handleToggleApproval(profile, profile.is_approved)}
-                      disabled={loading} // Simplified: only disable if loading
+                      disabled={loading}
                     >
                       {profile.is_approved ? (
                         <XCircle className="h-4 w-4 text-destructive" />
