@@ -151,15 +151,41 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
     const messageContent = newMessage.trim();
     if (!messageContent || sending || !currentUserId || !recipientId) return;
 
-    // Verifica sessão válida antes de enviar
-    const { data: userData } = await supabase.auth.getUser();
-    if (!userData.user) {
-      toast({ title: "Sessão expirada", description: "Faça login novamente para enviar mensagens.", variant: "destructive" });
-      return;
-    }
-
     setSending(true);
     try {
+      // --- NEW PRE-CHECK FOR USER APPROVAL ---
+      const { data: senderProfile, error: senderError } = await supabase
+        .from('profiles')
+        .select('is_approved')
+        .eq('id', currentUserId)
+        .single();
+
+      const { data: receiverProfile, error: receiverError } = await supabase
+        .from('profiles')
+        .select('is_approved')
+        .eq('id', recipientId)
+        .single();
+
+      if (senderError || receiverError) {
+        console.error('Error fetching approval status:', senderError || receiverError);
+        throw new Error('Não foi possível verificar o status de aprovação dos usuários.');
+      }
+
+      if (!senderProfile?.is_approved) {
+        throw new Error('Você precisa ser aprovado para enviar mensagens.');
+      }
+      if (!receiverProfile?.is_approved) {
+        throw new Error('O destinatário ainda não foi aprovado e não pode receber mensagens.');
+      }
+      // --- END NEW PRE-CHECK ---
+
+      // Verifica sessão válida antes de enviar
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) {
+        toast({ title: "Sessão expirada", description: "Faça login novamente para enviar mensagens.", variant: "destructive" });
+        return;
+      }
+
       // Validar autenticação
       const { data: { session } } = await supabase.auth.getSession();
       console.log('🔐 Validação de sessão:', {
@@ -213,7 +239,9 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
         if (error.code === '23503') {
           throw new Error('Usuário não encontrado.');
         } else if (error.code === '42501') {
-          throw new Error('Você não tem permissão para enviar mensagens.');
+          // This specific RLS error should ideally be caught by the pre-check now.
+          // If it still happens, it's a deeper RLS issue.
+          throw new Error('Você não tem permissão para enviar mensagens (RLS).');
         }
         throw error;
       }
