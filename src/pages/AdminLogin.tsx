@@ -78,44 +78,8 @@ const AdminLogin = () => {
       });
 
       if (authError) {
-        console.error('Initial signInWithPassword error:', authError);
-        // If user not found or invalid credentials, try to create them (for the hardcoded admin)
-        if (authError.message.includes('invalid login credentials') || authError.message.includes('user not found')) {
-          console.log('User not found or invalid credentials, checking if it\'s the hardcoded admin for initial setup.');
-          // This is a special case for the initial hardcoded admin setup
-          if (validatedData.email === 'admin@aasp.app.br' && validatedData.password === 'admin123') {
-            toast({ title: "Configurando admin...", description: "Primeiro acesso do administrador." });
-            console.log('Attempting to sign up hardcoded admin:', validatedData.email);
-            const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-              email: validatedData.email,
-              password: validatedData.password,
-              options: {
-                data: {
-                  full_name: 'Administrador',
-                  phone: '', // Or a default phone number
-                }
-              }
-            });
-
-            if (signUpError) {
-              console.error('SignUp error for admin:', signUpError);
-              toast({ title: "Erro no cadastro do admin", description: signUpError.message, variant: "destructive" });
-              throw signUpError;
-            }
-
-            if (signUpData.user) {
-              console.log('Admin user signed up successfully:', signUpData.user.id);
-              toast({
-                title: "Conta de administrador criada!",
-                description: "Por favor, confirme seu e-mail no painel do Supabase e tente fazer login novamente.",
-                variant: "success"
-              });
-              setIsLoading(false); // Stop loading here
-              return; // Exit the function
-            }
-          }
-        }
-        throw authError; // Re-throw original auth error if not hardcoded admin setup
+        console.error('signInWithPassword error:', authError);
+        throw authError;
       }
 
       if (data.user) {
