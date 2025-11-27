@@ -23,6 +23,7 @@ import {
   ShieldAlert,
   Ambulance,
   Wrench,
+  Mail,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -40,8 +41,20 @@ import DashboardHome from "@/components/DashboardHome";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import UtilitiesList from "@/components/UtilitiesList";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useUnreadMessageCount } from "@/hooks/useUnreadMessageCount"; // Import the new hook
 
 type DashboardView = 'home' | 'chat' | 'cameras' | 'map' | 'utilities';
+
+interface NotificationItem {
+  type: 'message' | 'alert';
+  id: string;
+  title: string;
+  description: string;
+  timestamp: string;
+  sender_id?: string;
+  is_read?: boolean;
+}
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -59,7 +72,7 @@ const Dashboard = () => {
     created_at: string;
     updated_at: string;
   } | null>(null);
-  const [alerts, setAlerts] = useState<{
+  const [emergencyAlerts, setEmergencyAlerts] = useState<{
     id: string;
     user_id: string;
     alert_type: string;
@@ -71,12 +84,16 @@ const Dashboard = () => {
     resolved_at: string | null;
     user_name?: string;
   }[]>([]);
+  const [unreadMessages, setUnreadMessages] = useState<NotificationItem[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const alertsPerPage = 5;
   const [activeView, setActiveView] = useState<DashboardView>('home');
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [selectedChatUserId, setSelectedChatUserId] = useState<string | null>(null);
   const [selectedCamera, setSelectedCamera] = useState<any>(null);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+
+  const { unreadCount, fetchUnreadCount, markAllMessagesAsRead } = useUnreadMessageCount(user?.id);
 
   useEffect(() => {
     if (user) {
@@ -122,9 +139,9 @@ const Dashboard = () => {
               user_name: profilesMap[alert.user_id] || "Usuário"
             }));
 
-            setAlerts(alertsWithNames);
+            setEmergencyAlerts(alertsWithNames);
           } else {
-            setAlerts([]);
+            setEmergencyAlerts([]);
           }
         });
 
@@ -152,7 +169,7 @@ const Dashboard = () => {
                 .eq("id", payload.new.user_id)
                 .single();
 
-              setAlerts((prev) => {
+              setEmergencyAlerts((prev) => {
                 const newAlert: typeof prev[0] = {
                   id: payload.new.id,
                   user_id: payload.new.user_id,
@@ -184,6 +201,54 @@ const Dashboard = () => {
       };
     }
   }, [user, toast]);
+
+  // Fetch unread messages for the notification popover
+  useEffect(() => {
+    const fetchUnreadMessagesForPopover = async () => {
+      if (!user) {
+        setUnreadMessages([]);
+        return;
+      }
+      try {
+        const { data, error } = await supabase
+          .from('messages')
+          .select('id, sender_id, content, created_at')
+          .eq('receiver_id', user.id)
+          .is('read_at', null)
+          .eq('is_group', false)
+          .order('created_at', { ascending: false })
+          .limit(5); // Limit to a few recent unread messages
+
+        if (error) throw error;
+
+        const messagesWithSenderNames = await Promise.all((data || []).map(async (msg) => {
+          const { data: senderProfile } = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('id', msg.sender_id)
+            .single();
+          return {
+            type: 'message',
+            id: msg.id,
+            title: `Nova mensagem de ${senderProfile?.full_name || 'Usuário'}`,
+            description: msg.content || 'Mensagem sem conteúdo',
+            timestamp: msg.created_at,
+            sender_id: msg.sender_id,
+            is_read: false,
+          } as NotificationItem;
+        }));
+        setUnreadMessages(messagesWithSenderNames);
+      } catch (error) {
+        console.error('Error fetching unread messages for popover:', error);
+        setUnreadMessages([]);
+      }
+    };
+
+    if (isNotificationsOpen && user) {
+      fetchUnreadMessagesForPopover();
+    }
+  }, [isNotificationsOpen, user]);
+
 
   const handleLogout = async () => {
     await signOut();
@@ -248,7 +313,7 @@ const Dashboard = () => {
 
       if (error) throw error;
 
-      setAlerts((prev) => {
+      setEmergencyAlerts((prev) => {
         // Mantém a ordem original dos alertas
         const updatedAlerts = prev.map((alert) =>
           alert.id === alertId
@@ -309,6 +374,24 @@ const Dashboard = () => {
     });
   };
 
+  const totalNotifications = emergencyAlerts.filter(alert => alert.is_active).length + unreadCount;
+
+  const handleNotificationClick = async (notification: NotificationItem) => {
+    if (notification.type === 'message' && notification.sender_id) {
+      await supabase
+        .from('messages')
+        .update({ read_at: new Date().toISOString() })
+        .eq('id', notification.id);
+      fetchUnreadCount(); // Update count after marking as read
+      setActiveView('chat');
+      setSelectedChatUserId(notification.sender_id);
+    } else if (notification.type === 'alert') {
+      // Maybe navigate to a map view or alert details
+      // For now, just close popover
+    }
+    setIsNotificationsOpen(false);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-hero">
@@ -339,17 +422,66 @@ const Dashboard = () => {
             </div>
 
             <div className="hidden md:flex items-center gap-4">
-              <Button variant="ghost" size="icon" className="relative">
-                <Bell className="h-5 w-5" />
-                {alerts.length > 0 && (
-                  <Badge
-                    variant="destructive"
-                    className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs"
-                  >
-                    {alerts.length}
-                  </Badge>
-                )}
-              </Button>
+              <Popover open={isNotificationsOpen} onOpenChange={setIsNotificationsOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="icon" className="relative">
+                    <Bell className="h-5 w-5" />
+                    {totalNotifications > 0 && (
+                      <Badge
+                        variant="destructive"
+                        className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs"
+                      >
+                        {totalNotifications}
+                      </Badge>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 p-0">
+                  <CardHeader className="p-4 border-b">
+                    <CardTitle className="text-lg">Notificações</CardTitle>
+                  </CardHeader>
+                  <ScrollArea className="h-[300px]">
+                    <div className="p-4 space-y-2">
+                      {emergencyAlerts.filter(alert => alert.is_active).map((alert) => (
+                        <div key={alert.id} className="flex items-start gap-2 p-2 hover:bg-muted rounded-md cursor-pointer" onClick={() => handleNotificationClick({
+                          type: 'alert',
+                          id: alert.id,
+                          title: `🚨 ALERTA: ${alert.alert_type.toUpperCase()}`,
+                          description: `${alert.user_name} ativou um alerta!`,
+                          timestamp: alert.created_at,
+                        })}>
+                          <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0" />
+                          <div>
+                            <p className="font-medium text-sm">🚨 ALERTA: {alert.alert_type.toUpperCase()}</p>
+                            <p className="text-xs text-muted-foreground">{alert.user_name} ativou um alerta!</p>
+                            <p className="text-xs text-muted-foreground">{new Date(alert.created_at).toLocaleString('pt-BR')}</p>
+                          </div>
+                        </div>
+                      ))}
+                      {unreadMessages.map((msg) => (
+                        <div key={msg.id} className="flex items-start gap-2 p-2 hover:bg-muted rounded-md cursor-pointer" onClick={() => handleNotificationClick(msg)}>
+                          <Mail className="h-5 w-5 text-primary flex-shrink-0" />
+                          <div>
+                            <p className="font-medium text-sm">{msg.title}</p>
+                            <p className="text-xs text-muted-foreground truncate">{msg.description}</p>
+                            <p className="text-xs text-muted-foreground">{new Date(msg.timestamp).toLocaleString('pt-BR')}</p>
+                          </div>
+                        </div>
+                      ))}
+                      {totalNotifications === 0 && (
+                        <p className="text-center text-muted-foreground text-sm py-4">Nenhuma notificação nova.</p>
+                      )}
+                    </div>
+                  </ScrollArea>
+                  {totalNotifications > 0 && (
+                    <div className="p-2 border-t">
+                      <Button variant="ghost" className="w-full text-sm" onClick={markAllMessagesAsRead}>
+                        Marcar todas como lidas
+                      </Button>
+                    </div>
+                  )}
+                </PopoverContent>
+              </Popover>
               <ProfileEditModal profile={profile} onProfileUpdate={setProfile} open={isProfileModalOpen} onOpenChange={setIsProfileModalOpen} />
               <div className="flex items-center gap-3 ml-4">
                 <Avatar>
