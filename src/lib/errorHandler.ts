@@ -10,6 +10,11 @@ export function mapErrorToUserMessage(error: unknown): string {
 
   const errorMessage = (error as { message?: string })?.message?.toLowerCase() || '';
 
+  // Specific error for admin access denied
+  if (errorMessage.includes('acesso negado. você não tem permissões de administrador.')) {
+    return 'Acesso negado. Suas credenciais não possuem permissão de administrador.';
+  }
+
   // Authentication errors - use same message for username enumeration prevention
   if (errorMessage.includes('invalid login credentials') ||
       errorMessage.includes('user not found') ||
@@ -37,7 +42,7 @@ export function mapErrorToUserMessage(error: unknown): string {
   // Database/RLS errors
   if (errorMessage.includes('row-level security') ||
       errorMessage.includes('permission denied')) {
-    return 'Você não tem permissão para enviar mensagens para este usuário';
+    return 'Você não tem permissão para realizar esta ação.'; // Generalizing RLS error
   }
 
   if (errorMessage.includes('violates') ||
