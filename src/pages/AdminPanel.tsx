@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAdmin } from '@/hooks/useAdmin';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Users, Camera, DollarSign, Shield, LogOut, Wrench, Bell, Mail, CheckCircle, XCircle } from 'lucide-react';
+import { ArrowLeft, Users, Camera, DollarSign, Shield, LogOut, Wrench, Bell, Mail, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import logo from '@/img/logo.png';
 import { useToast } from '@/hooks/use-toast';
 import UserManagement from '@/components/admin/UserManagementEnhanced';
