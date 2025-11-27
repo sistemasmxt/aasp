@@ -4,9 +4,19 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.75.0';
 console.log('Hello from notify-admin-payment Edge Function!');
 
 serve(async (req) => {
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  };
+
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
   if (req.method !== 'POST') {
+    console.error('Method Not Allowed:', req.method);
     return new Response(JSON.stringify({ error: 'Method Not Allowed' }), {
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 405,
     });
   }
@@ -24,8 +34,9 @@ serve(async (req) => {
   try {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
+      console.error('Authorization header missing');
       return new Response(JSON.stringify({ error: 'Authorization header missing' }), {
-        headers: { 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 401,
       });
     }
@@ -34,16 +45,18 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
 
     if (authError || !user) {
-      console.error('Auth error:', authError?.message);
+      console.error('Auth error in Edge Function:', authError?.message || 'User not found');
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        headers: { 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 401,
       });
     }
 
     const userId = user.id;
+    console.log('User authenticated in Edge Function:', userId);
 
     // 1. Update user's profile initial_payment_status to 'pending'
+    console.log('Updating profile initial_payment_status to pending for user:', userId);
     const { error: profileUpdateError } = await supabaseClient
       .from('profiles')
       .update({ initial_payment_status: 'pending' })
@@ -53,8 +66,10 @@ serve(async (req) => {
       console.error('Error updating profile status:', profileUpdateError);
       throw new Error('Failed to update profile payment status.');
     }
+    console.log('Profile status updated successfully.');
 
     // 2. Check for existing initial payment and update/insert
+    console.log('Checking for existing initial payment for user:', userId);
     const { data: existingPayment, error: fetchPaymentError } = await supabaseClient
       .from('payments')
       .select('id, status')
@@ -66,6 +81,7 @@ serve(async (req) => {
       console.error('Error fetching existing payment:', fetchPaymentError);
       throw new Error('Failed to check existing payment.');
     }
+    console.log('Existing payment check result:', existingPayment);
 
     const INITIAL_PAYMENT_AMOUNT = 132.00; // Ensure this matches frontend
     const nextMonth = new Date();
@@ -76,8 +92,8 @@ serve(async (req) => {
     let paymentId: string | undefined;
 
     if (existingPayment) {
-      // If an initial payment exists and is not yet paid, update its status to pending
       if (existingPayment.status === 'unpaid') {
+        console.log('Updating existing unpaid payment to pending:', existingPayment.id);
         const { data: updatedPayment, error: updatePaymentError } = await supabaseClient
           .from('payments')
           .update({ status: 'pending' })
@@ -90,11 +106,13 @@ serve(async (req) => {
           throw new Error('Failed to update existing payment status.');
         }
         paymentId = updatedPayment?.id;
+        console.log('Existing payment updated to pending:', paymentId);
       } else {
-        paymentId = existingPayment.id; // Use existing payment ID if already pending/paid
+        paymentId = existingPayment.id;
+        console.log('Existing payment already pending/paid:', paymentId);
       }
     } else {
-      // If no initial payment exists, insert a new one
+      console.log('Inserting new initial payment for user:', userId);
       const { data: insertedPayment, error: insertPaymentError } = await supabaseClient
         .from('payments')
         .insert({
@@ -113,9 +131,11 @@ serve(async (req) => {
         throw new Error('Failed to insert new payment record.');
       }
       paymentId = insertedPayment?.id;
+      console.log('New initial payment inserted:', paymentId);
     }
 
     // 3. Insert a notification for the admin
+    console.log('Fetching profile for admin notification for user:', userId);
     const { data: profileData, error: profileError } = await supabaseClient
       .from('profiles')
       .select('full_name')
@@ -123,7 +143,9 @@ serve(async (req) => {
       .single();
 
     const userName = profileData?.full_name || 'Um usuário';
+    console.log('User name for notification:', userName);
 
+    console.log('Inserting admin notification...');
     const { error: notificationError } = await supabaseClient
       .from('admin_notifications')
       .insert({
@@ -139,16 +161,17 @@ serve(async (req) => {
       // Don't throw here, as the payment process itself was successful.
       // Log the error but allow the function to complete.
     }
+    console.log('Admin notification inserted successfully.');
 
     return new Response(JSON.stringify({ message: 'Admin notified successfully' }), {
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
 
   } catch (error: any) {
-    console.error('Edge Function error:', error.message);
+    console.error('Edge Function error caught:', error.message);
     return new Response(JSON.stringify({ error: error.message }), {
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
     });
   }

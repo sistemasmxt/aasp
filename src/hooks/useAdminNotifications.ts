@@ -20,19 +20,36 @@ export const useAdminNotifications = (adminId: string | undefined) => {
     }
     setLoading(true);
     try {
+      // Simplificando a consulta para depurar o erro 400
       const { data, error } = await supabase
         .from('admin_notifications')
-        .select(`
-          *,
-          profiles(full_name)
-        `)
+        .select(`*`) // Alterado de '*, profiles(full_name)' para apenas '*'
         .order('created_at', { ascending: false })
         .limit(20); // Limit to recent notifications
 
       if (error) throw error;
 
-      const unread = (data || []).filter(n => !n.is_read).length;
-      setNotifications(data || []);
+      // Se a consulta simplificada funcionar, então o problema era na junção.
+      // Precisamos então buscar os perfis separadamente para cada notificação.
+      const notificationsWithProfiles = await Promise.all((data || []).map(async (notification) => {
+        let profileData = null;
+        if (notification.user_id) {
+          const { data: fetchedProfile } = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('id', notification.user_id)
+            .single();
+          profileData = fetchedProfile;
+        }
+        return {
+          ...notification,
+          profiles: profileData,
+        };
+      }));
+
+
+      const unread = notificationsWithProfiles.filter(n => !n.is_read).length;
+      setNotifications(notificationsWithProfiles);
       setUnreadCount(unread);
     } catch (error) {
       console.error('Error fetching admin notifications:', error);
@@ -56,7 +73,7 @@ export const useAdminNotifications = (adminId: string | undefined) => {
           table: 'admin_notifications',
         },
         async (payload) => {
-          const newNotification = payload.new as AdminNotification;
+          const newNotification = payload.new as Tables<'admin_notifications'>;
           // Fetch profile for the new notification
           const { data: profileData } = await supabase
             .from('profiles')
@@ -82,12 +99,23 @@ export const useAdminNotifications = (adminId: string | undefined) => {
           schema: 'public',
           table: 'admin_notifications',
         },
-        (payload) => {
-          const updatedNotification = payload.new as AdminNotification;
-          const oldNotification = payload.old as AdminNotification;
+        async (payload) => {
+          const updatedNotification = payload.new as Tables<'admin_notifications'>;
+          const oldNotification = payload.old as Tables<'admin_notifications'>;
+
+          // Re-fetch profile for updated notification in case full_name changed or was missing
+          let profileData = null;
+          if (updatedNotification.user_id) {
+            const { data: fetchedProfile } = await supabase
+              .from('profiles')
+              .select('full_name')
+              .eq('id', updatedNotification.user_id)
+              .single();
+            profileData = fetchedProfile;
+          }
 
           setNotifications((prev) =>
-            prev.map(n => n.id === updatedNotification.id ? { ...n, ...updatedNotification } : n)
+            prev.map(n => n.id === updatedNotification.id ? { ...n, ...updatedNotification, profiles: profileData } : n)
           );
 
           // Adjust unread count
