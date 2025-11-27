@@ -77,7 +77,7 @@ export default defineConfig(({ mode }) => ({
         display: "standalone",
         orientation: "portrait-primary",
         scope: "/",
-        start_url: "/",
+        start_url": "/",
         icons: [
           {
             src: "/pwa-64x64.png",
@@ -111,5 +111,7 @@ export default defineConfig(({ mode }) => ({
   optimizeDeps: {
     // Removed qrcode.react from exclude list
     exclude: [], 
+    // Adiciona lucide-react para forçar a pré-otimização
+    include: ['lucide-react'],
   },
 }));
