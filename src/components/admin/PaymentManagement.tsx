@@ -20,7 +20,7 @@ type Payment = Tables<'payments'> & { user_full_name?: string };
 type Profile = Tables<'profiles'>;
 
 const PaymentManagement = () => {
-  const [payments, setPayments] = useState<Payment[]>([]);
+  const [payments, setPayments] = useState<Payment[]>(([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
