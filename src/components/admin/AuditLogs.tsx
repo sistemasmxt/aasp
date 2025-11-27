@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
+import { Badge } => '@/components/ui/badge';
 import { FileText, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -29,11 +29,13 @@ const AuditLogs = ({ refetchTrigger }: AuditLogsProps) => {
   const { toast } = useToast();
 
   useEffect(() => {
+    console.log('[AuditLogs] useEffect triggered, refetchTrigger:', refetchTrigger);
     fetchLogs();
   }, [refetchTrigger]);
 
   const fetchLogs = async () => {
     setLoading(true);
+    console.log('[AuditLogs] Starting fetchLogs...');
     try {
       const { data, error } = await supabase
         .from('admin_logs')
@@ -41,18 +43,28 @@ const AuditLogs = ({ refetchTrigger }: AuditLogsProps) => {
         .order('created_at', { ascending: false })
         .limit(100);
 
-      if (error) throw error;
+      console.log('[AuditLogs] Supabase response - data:', data);
+      console.log('[AuditLogs] Supabase response - error:', error);
+
+      if (error) {
+        console.error('[AuditLogs] Error fetching audit logs from Supabase:', error);
+        throw error;
+      }
 
       const logsWithProfiles = await Promise.all(
         (data || []).map(async (log) => {
           let profile = null;
           // Only try to fetch profile if user_id is not null
           if (log.user_id) {
-            const { data: fetchedProfile } = await supabase
+            const { data: fetchedProfile, error: profileError } = await supabase
               .from('profiles')
               .select('full_name')
               .eq('id', log.user_id)
               .single();
+            
+            if (profileError) {
+              console.warn(`[AuditLogs] Could not fetch profile for user_id ${log.user_id}:`, profileError);
+            }
             profile = fetchedProfile;
           }
 
@@ -63,9 +75,10 @@ const AuditLogs = ({ refetchTrigger }: AuditLogsProps) => {
         })
       );
 
+      console.log('[AuditLogs] Processed logs with profiles:', logsWithProfiles);
       setLogs(logsWithProfiles);
     } catch (error: any) {
-      console.error('Error fetching audit logs:', error);
+      console.error('[AuditLogs] Error in fetchLogs:', error);
       toast({
         title: 'Erro ao carregar logs de auditoria',
         description: error.message,
@@ -73,6 +86,7 @@ const AuditLogs = ({ refetchTrigger }: AuditLogsProps) => {
       });
     } finally {
       setLoading(false);
+      console.log('[AuditLogs] fetchLogs finished. Current logs state length:', logs.length);
     }
   };
 
