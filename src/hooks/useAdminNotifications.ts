@@ -22,29 +22,51 @@ export const useAdminNotifications = (adminId: string | undefined) => {
     }
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      // Step 1: Fetch admin_notifications without joining profiles
+      const { data: notificationsData, error: notificationsError } = await supabase
         .from('admin_notifications')
-        .select(`*, profiles(full_name)`)
+        .select(`*`)
         .order('created_at', { ascending: false })
         .limit(20);
 
-      if (error) {
-        console.error("[useAdminNotifications] Supabase fetch error:", error);
-        throw error;
+      if (notificationsError) {
+        console.error("[useAdminNotifications] Supabase fetch notifications error:", notificationsError);
+        throw notificationsError;
       }
 
-      const unread = (data || []).filter(n => !n.is_read).length;
-      setNotifications(data || []);
+      // Step 2: Manually fetch profiles for each notification
+      const notificationsWithProfiles = await Promise.all((notificationsData || []).map(async (notification) => {
+        let profileData = null;
+        if (notification.user_id) {
+          const { data: fetchedProfile, error: profileError } = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('id', notification.user_id)
+            .single();
+          
+          if (profileError) {
+            console.warn(`[useAdminNotifications] Error fetching profile for user_id ${notification.user_id}:`, profileError);
+          }
+          profileData = fetchedProfile;
+        }
+        return {
+          ...notification,
+          profiles: profileData,
+        };
+      }));
+
+      const unread = notificationsWithProfiles.filter(n => !n.is_read).length;
+      setNotifications(notificationsWithProfiles);
       setUnreadCount(unread);
     } catch (error) {
       console.error('Error fetching admin notifications:', error);
     } finally {
       setLoading(false);
     }
-  }, [adminId]); // fetchNotifications só muda se adminId mudar
+  }, [adminId]); // fetchNotifications only changes if adminId changes
 
   useEffect(() => {
-    // Chamada inicial quando adminId está disponível ou muda
+    // Initial call when adminId is available or changes
     if (adminId) {
       fetchNotifications();
     }
@@ -61,14 +83,14 @@ export const useAdminNotifications = (adminId: string | undefined) => {
           table: 'admin_notifications',
         },
         async (payload) => {
-          const newNotification = payload.new as AdminNotification;
-          // Buscar perfil para a nova notificação
+          const newNotification = payload.new as Tables<'admin_notifications'>;
+          // Fetch profile for the new notification
           const { data: profileData } = await supabase
             .from('profiles')
             .select('full_name')
             .eq('id', newNotification.user_id)
             .single();
-
+          
           const notificationWithProfile = {
             ...newNotification,
             profiles: profileData,
@@ -88,10 +110,10 @@ export const useAdminNotifications = (adminId: string | undefined) => {
           table: 'admin_notifications',
         },
         async (payload) => {
-          const updatedNotification = payload.new as AdminNotification;
-          const oldNotification = payload.old as AdminNotification;
+          const updatedNotification = payload.new as Tables<'admin_notifications'>;
+          const oldNotification = payload.old as Tables<'admin_notifications'>;
 
-          // Re-buscar perfil para notificação atualizada caso o nome completo tenha mudado ou estivesse faltando
+          // Re-fetch profile for updated notification in case full_name changed or was missing
           let profileData = null;
           if (updatedNotification.user_id) {
             const { data: fetchedProfile } = await supabase
@@ -106,7 +128,7 @@ export const useAdminNotifications = (adminId: string | undefined) => {
             prev.map(n => n.id === updatedNotification.id ? { ...n, ...updatedNotification, profiles: profileData } : n)
           );
 
-          // Ajustar contagem de não lidas
+          // Adjust unread count
           if (oldNotification.is_read && !updatedNotification.is_read) {
             setUnreadCount((prev) => prev + 1);
           } else if (!oldNotification.is_read && updatedNotification.is_read) {
@@ -119,7 +141,7 @@ export const useAdminNotifications = (adminId: string | undefined) => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [adminId, fetchNotifications]); // fetchNotifications é uma dependência estável devido ao useCallback
+  }, [adminId, fetchNotifications]); // fetchNotifications is a stable dependency due to useCallback
 
   const markNotificationAsRead = async (notificationId: string) => {
     try {
