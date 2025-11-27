@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Trash2, Edit, Phone, MessageCircle, Siren, Building2, Scale, Heart, Users, MapPin, Wrench } from 'lucide-react';
+import { Plus, Trash2, Edit, Phone, MessageCircle, Siren, Building2, Scale, Heart, Users, MapPin, Wrench, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,7 +13,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { logAudit } from '@/lib/auditLogger';
 import * as LucideIcons from 'lucide-react';
-import { mapErrorToUserMessage } from '@/lib/errorHandler'; // Import mapErrorToUserMessage
+import { mapErrorToUserMessage } from '@/lib/errorHandler';
+import { publicUtilityContactSchema } from '@/lib/validationSchemas'; // Import publicUtilityContactSchema
+import { z } from 'zod';
 
 interface PublicUtilityContact {
   id: string;
@@ -91,7 +93,7 @@ const PublicUtilityContactsManagement = () => {
     } catch (error: any) {
       toast({
         title: 'Erro ao carregar contatos',
-        description: error.message,
+        description: mapErrorToUserMessage(error),
         variant: 'destructive',
       });
     } finally {
@@ -114,15 +116,19 @@ const PublicUtilityContactsManagement = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
 
     try {
+      // Validate input using Zod schema
+      const validatedData = publicUtilityContactSchema.parse(formData);
+
       const contactData = {
-        name: formData.name,
-        phone: formData.phone,
-        whatsapp: formData.whatsapp || null,
-        description: formData.description || null,
-        icon_name: formData.icon_name,
-        color_class: formData.color_class,
+        name: validatedData.name,
+        phone: validatedData.phone,
+        whatsapp: validatedData.whatsapp || null,
+        description: validatedData.description || null,
+        icon_name: validatedData.icon_name,
+        color_class: validatedData.color_class,
       };
 
       if (editingContact) {
@@ -178,22 +184,33 @@ const PublicUtilityContactsManagement = () => {
       });
       fetchContacts();
     } catch (error: any) {
-      let userMessage = mapErrorToUserMessage(error);
-      if (error.code === '23505' && error.message.includes('public_utility_contacts_name_key')) {
-        userMessage = 'Já existe um contato com este nome. Por favor, use um nome diferente.';
-      }
+      if (error instanceof z.ZodError) {
+        toast({
+          title: 'Erro de validação',
+          description: error.errors[0].message,
+          variant: 'destructive',
+        });
+      } else {
+        let userMessage = mapErrorToUserMessage(error);
+        if (error.code === '23505' && error.message.includes('public_utility_contacts_name_key')) {
+          userMessage = 'Já existe um contato com este nome. Por favor, use um nome diferente.';
+        }
 
-      toast({
-        title: editingContact ? 'Erro ao atualizar contato' : 'Erro ao cadastrar contato',
-        description: userMessage,
-        variant: 'destructive',
-      });
+        toast({
+          title: editingContact ? 'Erro ao atualizar contato' : 'Erro ao cadastrar contato',
+          description: userMessage,
+          variant: 'destructive',
+        });
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm('Deseja realmente excluir este contato?')) return;
 
+    setLoading(true);
     try {
       const { error } = await supabase.from('public_utility_contacts').delete().eq('id', id);
 
@@ -217,11 +234,13 @@ const PublicUtilityContactsManagement = () => {
         description: mapErrorToUserMessage(error),
         variant: 'destructive',
       });
+    } finally {
+      setLoading(false);
     }
   };
 
   if (loading) {
-    return <div className="text-center py-8">Carregando contatos de utilidade pública...</div>;
+    return <div className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin inline-block mr-2" /> Carregando contatos de utilidade pública...</div>;
   }
 
   return (
@@ -265,6 +284,7 @@ const PublicUtilityContactsManagement = () => {
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     required
+                    disabled={loading}
                   />
                 </div>
                 <div className="space-y-2">
@@ -274,6 +294,7 @@ const PublicUtilityContactsManagement = () => {
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     required
+                    disabled={loading}
                   />
                 </div>
                 <div className="space-y-2">
@@ -283,6 +304,7 @@ const PublicUtilityContactsManagement = () => {
                     value={formData.whatsapp}
                     onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })}
                     placeholder="Opcional"
+                    disabled={loading}
                   />
                 </div>
                 <div className="space-y-2">
@@ -290,6 +312,7 @@ const PublicUtilityContactsManagement = () => {
                   <Select
                     value={formData.icon_name}
                     onValueChange={(value) => setFormData({ ...formData, icon_name: value })}
+                    disabled={loading}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione um ícone" />
@@ -308,6 +331,7 @@ const PublicUtilityContactsManagement = () => {
                   <Select
                     value={formData.color_class}
                     onValueChange={(value) => setFormData({ ...formData, color_class: value })}
+                    disabled={loading}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione uma cor" />
@@ -328,14 +352,16 @@ const PublicUtilityContactsManagement = () => {
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     placeholder="Breve descrição do contato (opcional)"
+                    disabled={loading}
                   />
                 </div>
               </div>
               <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} disabled={loading}>
                   Cancelar
                 </Button>
-                <Button type="submit">
+                <Button type="submit" disabled={loading}>
+                  {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
                   {editingContact ? 'Atualizar' : 'Cadastrar'}
                 </Button>
               </div>
@@ -373,6 +399,7 @@ const PublicUtilityContactsManagement = () => {
                       variant="ghost"
                       size="sm"
                       onClick={() => handleEdit(contact)}
+                      disabled={loading}
                     >
                       <Edit className="h-4 w-4" />
                     </Button>
@@ -380,6 +407,7 @@ const PublicUtilityContactsManagement = () => {
                       variant="ghost"
                       size="sm"
                       onClick={() => handleDelete(contact.id)}
+                      disabled={loading}
                     >
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>

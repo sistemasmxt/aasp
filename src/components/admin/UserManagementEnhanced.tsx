@@ -11,7 +11,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { logAudit } from '@/lib/auditLogger';
-import { Tables } from '@/integrations/supabase/types'; // Import Tables type
+import { Tables } from '@/integrations/supabase/types';
+import { userSchema } from '@/lib/validationSchemas'; // Import userSchema
+import { z } from 'zod';
+import { mapErrorToUserMessage } from '@/lib/errorHandler';
 
 type Profile = Tables<'profiles'>;
 type UserRole = Tables<'user_roles'>;
@@ -51,7 +54,7 @@ const UserManagementEnhanced = () => {
     } catch (error: any) {
       toast({
         title: 'Erro ao carregar usuários',
-        description: error.message,
+        description: mapErrorToUserMessage(error),
         variant: 'destructive',
       });
     } finally {
@@ -82,13 +85,20 @@ const UserManagementEnhanced = () => {
     setLoading(true);
 
     try {
+      // Validate input using Zod schema
+      const validatedData = userSchema.extend({
+        email: z.string().email('Email inválido'),
+        password: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres'),
+        is_admin: z.boolean().optional(),
+      }).parse(createForm);
+
       const { data: { user }, error: authError } = await supabase.auth.signUp({
-        email: createForm.email,
-        password: createForm.password,
+        email: validatedData.email,
+        password: validatedData.password,
         options: {
           data: {
-            full_name: createForm.full_name,
-            phone: createForm.phone,
+            full_name: validatedData.full_name,
+            phone: validatedData.phone,
           },
         },
       });
@@ -100,18 +110,18 @@ const UserManagementEnhanced = () => {
         const { error: profileError } = await supabase
           .from('profiles')
           .update({
-            full_name: createForm.full_name,
-            phone: createForm.phone || null,
-            address: createForm.address || null,
-            is_approved: createForm.is_admin, // Admins are approved by default
-            initial_payment_status: createForm.is_admin ? 'paid' : 'unpaid',
+            full_name: validatedData.full_name,
+            phone: validatedData.phone || null,
+            address: validatedData.address || null,
+            is_approved: validatedData.is_admin, // Admins are approved by default
+            initial_payment_status: validatedData.is_admin ? 'paid' : 'unpaid',
           })
           .eq('id', user.id);
 
         if (profileError) throw profileError;
 
         // Add admin role if selected
-        if (createForm.is_admin) {
+        if (validatedData.is_admin) {
           const { error: roleError } = await supabase
             .from('user_roles')
             .insert({ user_id: user.id, role: 'admin' });
@@ -123,13 +133,13 @@ const UserManagementEnhanced = () => {
           action: 'CREATE',
           table_name: 'users',
           record_id: user.id,
-          details: { email: createForm.email, full_name: createForm.full_name, is_admin: createForm.is_admin },
+          details: { email: validatedData.email, full_name: validatedData.full_name, is_admin: validatedData.is_admin },
         });
 
         toast({
           title: 'Usuário criado!',
           description: 'O novo usuário foi cadastrado com sucesso.',
-          variant: 'default', // Corrected variant
+          variant: 'default',
         });
 
         setCreateDialogOpen(false);
@@ -145,11 +155,19 @@ const UserManagementEnhanced = () => {
         fetchUserRoles();
       }
     } catch (error: any) {
-      toast({
-        title: 'Erro ao criar usuário',
-        description: error.message,
-        variant: 'destructive',
-      });
+      if (error instanceof z.ZodError) {
+        toast({
+          title: 'Erro de validação',
+          description: error.errors[0].message,
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Erro ao criar usuário',
+          description: mapErrorToUserMessage(error),
+          variant: 'destructive',
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -168,10 +186,14 @@ const UserManagementEnhanced = () => {
   const handleUpdateUser = async () => {
     if (!selectedProfile) return;
 
+    setLoading(true);
     try {
+      // Validate input using Zod schema (excluding email and password for update)
+      const validatedData = userSchema.omit({ email: true, password: true }).parse(editForm);
+
       const { error } = await supabase
         .from('profiles')
-        .update(editForm)
+        .update(validatedData)
         .eq('id', selectedProfile.id);
 
       if (error) throw error;
@@ -180,27 +202,38 @@ const UserManagementEnhanced = () => {
         action: 'UPDATE',
         table_name: 'users',
         record_id: selectedProfile.id,
-        details: editForm,
+        details: validatedData,
       });
 
       toast({
         title: 'Usuário atualizado!',
         description: 'As informações foram salvas com sucesso.',
-        variant: 'default', // Corrected variant
+        variant: 'default',
       });
 
       setEditDialogOpen(false);
       fetchProfiles();
     } catch (error: any) {
-      toast({
-        title: 'Erro ao atualizar usuário',
-        description: error.message,
-        variant: 'destructive',
-      });
+      if (error instanceof z.ZodError) {
+        toast({
+          title: 'Erro de validação',
+          description: error.errors[0].message,
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Erro ao atualizar usuário',
+          description: mapErrorToUserMessage(error),
+          variant: 'destructive',
+        });
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleToggleAdmin = async (userId: string, isCurrentlyAdmin: boolean) => {
+    setLoading(true);
     try {
       if (isCurrentlyAdmin) {
         const { error } = await supabase
@@ -221,7 +254,7 @@ const UserManagementEnhanced = () => {
         toast({
           title: 'Permissões atualizadas',
           description: 'Usuário removido como administrador.',
-          variant: 'default', // Corrected variant
+          variant: 'default',
         });
       } else {
         const { error } = await supabase
@@ -240,7 +273,7 @@ const UserManagementEnhanced = () => {
         toast({
           title: 'Permissões atualizadas',
           description: 'Usuário promovido a administrador.',
-          variant: 'default', // Corrected variant
+          variant: 'default',
         });
       }
 
@@ -248,13 +281,16 @@ const UserManagementEnhanced = () => {
     } catch (error: any) {
       toast({
         title: 'Erro ao atualizar permissões',
-        description: error.message,
+        description: mapErrorToUserMessage(error),
         variant: 'destructive',
       });
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleToggleApproval = async (profile: Profile, isCurrentlyApproved: boolean) => {
+    setLoading(true);
     try {
       const newApprovalStatus = !isCurrentlyApproved;
       const newPaymentStatus = newApprovalStatus ? 'paid' : 'unpaid';
@@ -289,22 +325,25 @@ const UserManagementEnhanced = () => {
       toast({
         title: 'Status de Aprovação Atualizado',
         description: `Usuário ${profile.full_name} foi ${newApprovalStatus ? 'aprovado' : 'desaprovado'}.`,
-        variant: 'default', // Corrected variant
+        variant: 'default',
       });
 
       fetchProfiles(); // Re-fetch profiles to update UI
     } catch (error: any) {
       toast({
         title: 'Erro ao atualizar aprovação',
-        description: error.message,
+        description: mapErrorToUserMessage(error),
         variant: 'destructive',
       });
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleDeleteUser = async (userId: string) => {
     if (!confirm('Tem certeza que deseja excluir este usuário? Esta ação não pode ser desfeita.')) return;
 
+    setLoading(true);
     try {
       // First delete from auth (this will cascade to profiles via trigger)
       const { error } = await supabase.auth.admin.deleteUser(userId);
@@ -320,7 +359,7 @@ const UserManagementEnhanced = () => {
       toast({
         title: 'Usuário excluído',
         description: 'O usuário foi removido com sucesso.',
-        variant: 'default', // Corrected variant
+        variant: 'default',
       });
 
       fetchProfiles();
@@ -328,14 +367,16 @@ const UserManagementEnhanced = () => {
     } catch (error: any) {
       toast({
         title: 'Erro ao excluir usuário',
-        description: error.message,
+        description: mapErrorToUserMessage(error),
         variant: 'destructive',
       });
+    } finally {
+      setLoading(false);
     }
   };
 
   if (loading) {
-    return <div className="text-center py-8">Carregando usuários...</div>;
+    return <div className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin inline-block mr-2" /> Carregando usuários...</div>;
   }
 
   return (
@@ -460,7 +501,9 @@ const UserManagementEnhanced = () => {
               <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
                 Cancelar
               </Button>
-              <Button onClick={handleUpdateUser}>Salvar</Button>
+              <Button onClick={handleUpdateUser} disabled={loading}>
+                {loading ? 'Salvando...' : 'Salvar'}
+              </Button>
             </div>
           </div>
         </DialogContent>
@@ -499,13 +542,14 @@ const UserManagementEnhanced = () => {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right space-x-2">
-                    <Button variant="ghost" size="sm" onClick={() => handleEditUser(profile)}>
+                    <Button variant="ghost" size="sm" onClick={() => handleEditUser(profile)} disabled={loading}>
                       <Pencil className="h-4 w-4" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => handleToggleAdmin(profile.id, isAdmin)}
+                      disabled={loading}
                     >
                       {isAdmin ? (
                         <ShieldOff className="h-4 w-4 text-destructive" />
@@ -517,7 +561,7 @@ const UserManagementEnhanced = () => {
                       variant="ghost"
                       size="sm"
                       onClick={() => handleToggleApproval(profile, profile.is_approved)}
-                      disabled={profile.initial_payment_status === 'unpaid' && !profile.is_approved} // Disable if unpaid and not approved
+                      disabled={loading || (profile.initial_payment_status === 'unpaid' && !profile.is_approved)}
                     >
                       {profile.is_approved ? (
                         <XCircle className="h-4 w-4 text-destructive" />
@@ -529,6 +573,7 @@ const UserManagementEnhanced = () => {
                       variant="ghost"
                       size="sm"
                       onClick={() => handleDeleteUser(profile.id)}
+                      disabled={loading}
                     >
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>

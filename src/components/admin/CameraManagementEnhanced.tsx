@@ -5,11 +5,14 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Camera, Plus, Trash2, Edit } from 'lucide-react';
+import { Camera, Plus, Trash2, Edit, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { logAudit } from '@/lib/auditLogger';
+import { cameraSchema } from '@/lib/validationSchemas'; // Import cameraSchema
+import { z } from 'zod';
+import { mapErrorToUserMessage } from '@/lib/errorHandler';
 
 interface CameraData {
   id: string;
@@ -58,7 +61,7 @@ const CameraManagementEnhanced = () => {
     } catch (error: any) {
       toast({
         title: 'Erro ao carregar câmeras',
-        description: error.message,
+        description: mapErrorToUserMessage(error),
         variant: 'destructive',
       });
     } finally {
@@ -83,9 +86,11 @@ const CameraManagementEnhanced = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
 
     try {
-      const cameraData = {
+      // Validate input using Zod schema
+      const validatedData = cameraSchema.parse({
         name: formData.name,
         ip_address: formData.ip_address,
         latitude: parseFloat(formData.latitude),
@@ -93,7 +98,18 @@ const CameraManagementEnhanced = () => {
         neighborhood: formData.neighborhood,
         street: formData.street,
         city: formData.city,
-        stream_url: formData.stream_url || null,
+        stream_url: formData.stream_url,
+      });
+
+      const cameraData = {
+        name: validatedData.name,
+        ip_address: validatedData.ip_address,
+        latitude: validatedData.latitude,
+        longitude: validatedData.longitude,
+        neighborhood: validatedData.neighborhood || null,
+        street: validatedData.street || null,
+        city: validatedData.city || null,
+        stream_url: validatedData.stream_url || null,
       };
 
       if (editingCamera) {
@@ -151,15 +167,26 @@ const CameraManagementEnhanced = () => {
       });
       fetchCameras();
     } catch (error: any) {
-      toast({
-        title: editingCamera ? 'Erro ao atualizar câmera' : 'Erro ao cadastrar câmera',
-        description: error.message,
-        variant: 'destructive',
-      });
+      if (error instanceof z.ZodError) {
+        toast({
+          title: 'Erro de validação',
+          description: error.errors[0].message,
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: editingCamera ? 'Erro ao atualizar câmera' : 'Erro ao cadastrar câmera',
+          description: mapErrorToUserMessage(error),
+          variant: 'destructive',
+        });
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
   const toggleCamera = async (id: string, currentStatus: boolean) => {
+    setLoading(true);
     try {
       const { error } = await supabase
         .from('cameras')
@@ -184,15 +211,18 @@ const CameraManagementEnhanced = () => {
     } catch (error: any) {
       toast({
         title: 'Erro ao atualizar status',
-        description: error.message,
+        description: mapErrorToUserMessage(error),
         variant: 'destructive',
       });
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm('Deseja realmente excluir esta câmera?')) return;
 
+    setLoading(true);
     try {
       const { error } = await supabase.from('cameras').delete().eq('id', id);
 
@@ -213,14 +243,16 @@ const CameraManagementEnhanced = () => {
     } catch (error: any) {
       toast({
         title: 'Erro ao excluir câmera',
-        description: error.message,
+        description: mapErrorToUserMessage(error),
         variant: 'destructive',
       });
+    } finally {
+      setLoading(false);
     }
   };
 
   if (loading) {
-    return <div className="text-center py-8">Carregando câmeras...</div>;
+    return <div className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin inline-block mr-2" /> Carregando câmeras...</div>;
   }
 
   return (
@@ -329,8 +361,8 @@ const CameraManagementEnhanced = () => {
                 <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                   Cancelar
                 </Button>
-                <Button type="submit">
-                  {editingCamera ? 'Atualizar' : 'Cadastrar'}
+                <Button type="submit" disabled={loading}>
+                  {loading ? 'Salvando...' : (editingCamera ? 'Atualizar' : 'Cadastrar')}
                 </Button>
               </div>
             </form>
@@ -367,6 +399,7 @@ const CameraManagementEnhanced = () => {
                     variant="ghost"
                     size="sm"
                     onClick={() => handleEdit(camera)}
+                    disabled={loading}
                   >
                     <Edit className="h-4 w-4" />
                   </Button>
@@ -374,6 +407,7 @@ const CameraManagementEnhanced = () => {
                     variant="ghost"
                     size="sm"
                     onClick={() => toggleCamera(camera.id, camera.is_active)}
+                    disabled={loading}
                   >
                     {camera.is_active ? 'Desativar' : 'Ativar'}
                   </Button>
@@ -381,6 +415,7 @@ const CameraManagementEnhanced = () => {
                     variant="ghost"
                     size="sm"
                     onClick={() => handleDelete(camera.id)}
+                    disabled={loading}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>

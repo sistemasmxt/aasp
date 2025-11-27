@@ -8,10 +8,13 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Trash2, Edit, DollarSign, CalendarPlus } from 'lucide-react';
+import { Plus, Trash2, Edit, DollarSign, CalendarPlus, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { logAudit } from '@/lib/auditLogger';
-import { Tables } from '@/integrations/supabase/types'; // Import Tables type
+import { Tables } from '@/integrations/supabase/types';
+import { paymentSchema } from '@/lib/validationSchemas'; // Import paymentSchema
+import { z } from 'zod';
+import { mapErrorToUserMessage } from '@/lib/errorHandler';
 
 type Payment = Tables<'payments'> & { user_full_name?: string };
 type Profile = Tables<'profiles'>;
@@ -26,8 +29,8 @@ const PaymentManagement = () => {
     user_id: '',
     amount: '',
     due_date: '',
-    status: 'pending' as Tables<'payments'>['status'], // Explicitly type status
-    payment_type: 'recurring' as Tables<'payments'>['payment_type'], // Explicitly type payment_type
+    status: 'pending' as Tables<'payments'>['status'],
+    payment_type: 'recurring' as Tables<'payments'>['payment_type'],
     description: '',
   });
   const { toast } = useToast();
@@ -40,19 +43,16 @@ const PaymentManagement = () => {
   const fetchPayments = async () => {
     setLoading(true);
     try {
-      // 1. Fetch payments data
       const { data: paymentsData, error: paymentsError } = await supabase
         .from('payments')
-        .select('*') // Select all columns from payments table
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (paymentsError) throw paymentsError;
 
       if (paymentsData && paymentsData.length > 0) {
-        // 2. Extract unique user IDs from payments
         const userIds = [...new Set(paymentsData.map(p => p.user_id))];
 
-        // 3. Fetch profiles for these user IDs
         const { data: profilesData, error: profilesError } = await supabase
           .from('profiles')
           .select('id, full_name')
@@ -60,10 +60,8 @@ const PaymentManagement = () => {
 
         if (profilesError) throw profilesError;
 
-        // 4. Create a map for quick lookup of user names
         const profilesMap = new Map(profilesData?.map(p => [p.id, p.full_name]));
 
-        // 5. Combine payments with user names
         const paymentsWithNames = paymentsData.map(payment => ({
           ...payment,
           user_full_name: profilesMap.get(payment.user_id) || 'Usuário Desconhecido',
@@ -76,7 +74,7 @@ const PaymentManagement = () => {
       console.error('Error fetching payments:', error);
       toast({
         title: 'Erro ao carregar pagamentos',
-        description: error.message || 'Tente novamente mais tarde',
+        description: mapErrorToUserMessage(error),
         variant: 'destructive',
       });
     } finally {
@@ -116,14 +114,24 @@ const PaymentManagement = () => {
     setLoading(true);
 
     try {
-      const paymentData: Tables<'payments', 'Insert'> = {
+      // Validate input using Zod schema
+      const validatedData = paymentSchema.parse({
         user_id: formData.user_id,
         amount: parseFloat(formData.amount),
         due_date: formData.due_date,
         status: formData.status,
         payment_type: formData.payment_type,
-        description: formData.description || null,
-        paid_at: formData.status === 'paid' ? new Date().toISOString() : null,
+        description: formData.description,
+      });
+
+      const paymentData: Tables<'payments', 'Insert'> = {
+        user_id: validatedData.user_id,
+        amount: validatedData.amount,
+        due_date: validatedData.due_date,
+        status: validatedData.status,
+        payment_type: validatedData.payment_type,
+        description: validatedData.description || null,
+        paid_at: validatedData.status === 'paid' ? new Date().toISOString() : null,
       };
 
       if (editingPayment) {
@@ -155,7 +163,7 @@ const PaymentManagement = () => {
         toast({
           title: 'Sucesso',
           description: 'Pagamento atualizado com sucesso',
-          variant: 'default', // Corrected variant
+          variant: 'default',
         });
       } else {
         const { data, error } = await supabase
@@ -176,7 +184,7 @@ const PaymentManagement = () => {
         toast({
           title: 'Sucesso',
           description: 'Pagamento criado com sucesso',
-          variant: 'default', // Corrected variant
+          variant: 'default',
         });
       }
 
@@ -184,12 +192,21 @@ const PaymentManagement = () => {
       setEditingPayment(null);
       setFormData({ user_id: '', amount: '', due_date: '', status: 'pending', payment_type: 'recurring', description: '' });
       fetchPayments();
-    } catch (error) {
-      console.error('Error saving payment:', error);
-      toast({
-        title: 'Erro ao salvar pagamento',
-        variant: 'destructive',
-      });
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        toast({
+          title: 'Erro de validação',
+          description: error.errors[0].message,
+          variant: 'destructive',
+        });
+      } else {
+        console.error('Error saving payment:', error);
+        toast({
+          title: 'Erro ao salvar pagamento',
+          description: mapErrorToUserMessage(error),
+          variant: 'destructive',
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -198,6 +215,7 @@ const PaymentManagement = () => {
   const handleDelete = async (id: string) => {
     if (!confirm('Tem certeza que deseja excluir este pagamento?')) return;
 
+    setLoading(true);
     try {
       const { error } = await supabase.from('payments').delete().eq('id', id);
       if (error) throw error;
@@ -211,15 +229,18 @@ const PaymentManagement = () => {
       toast({
         title: 'Sucesso',
         description: 'Pagamento excluído com sucesso',
-        variant: 'default', // Corrected variant
+        variant: 'default',
       });
       fetchPayments();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting payment:', error);
       toast({
         title: 'Erro ao excluir pagamento',
+        description: mapErrorToUserMessage(error),
         variant: 'destructive',
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -236,7 +257,7 @@ const PaymentManagement = () => {
       if (usersError) throw usersError;
 
       if (!activeUsers || activeUsers.length === 0) {
-        toast({ title: 'Nenhum usuário ativo', description: 'Não há usuários aprovados para gerar mensalidades.', variant: 'default' }); // Corrected variant
+        toast({ title: 'Nenhum usuário ativo', description: 'Não há usuários aprovados para gerar mensalidades.', variant: 'default' });
         setLoading(false);
         return;
       }
@@ -269,14 +290,14 @@ const PaymentManagement = () => {
       toast({
         title: 'Mensalidades geradas!',
         description: `${paymentsToInsert.length} pagamentos recorrentes foram criados para o próximo mês.`,
-        variant: 'default', // Corrected variant
+        variant: 'default',
       });
       fetchPayments();
     } catch (error: any) {
       console.error('Error generating recurring payments:', error.message);
       toast({
         title: 'Erro ao gerar mensalidades',
-        description: error.message,
+        description: mapErrorToUserMessage(error),
         variant: 'destructive',
       });
     } finally {
@@ -340,7 +361,7 @@ const PaymentManagement = () => {
                     <Select
                       value={formData.user_id}
                       onValueChange={(value) => setFormData({ ...formData, user_id: value })}
-                      disabled={!!editingPayment}
+                      disabled={!!editingPayment || loading}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione um usuário" />
@@ -365,6 +386,7 @@ const PaymentManagement = () => {
                       value={formData.amount}
                       onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                       required
+                      disabled={loading}
                     />
                   </div>
 
@@ -376,6 +398,7 @@ const PaymentManagement = () => {
                       value={formData.due_date}
                       onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
                       required
+                      disabled={loading}
                     />
                   </div>
 
@@ -384,6 +407,7 @@ const PaymentManagement = () => {
                     <Select
                       value={formData.status}
                       onValueChange={(value) => setFormData({ ...formData, status: value as Tables<'payments'>['status'] })}
+                      disabled={loading}
                     >
                       <SelectTrigger>
                         <SelectValue />
@@ -401,7 +425,7 @@ const PaymentManagement = () => {
                     <Select
                       value={formData.payment_type}
                       onValueChange={(value) => setFormData({ ...formData, payment_type: value as Tables<'payments'>['payment_type'] })}
-                      disabled={!!editingPayment}
+                      disabled={!!editingPayment || loading}
                     >
                       <SelectTrigger>
                         <SelectValue />
@@ -420,15 +444,17 @@ const PaymentManagement = () => {
                       value={formData.description}
                       onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                       placeholder="Ex: Mensalidade Out/2025"
+                      disabled={loading}
                     />
                   </div>
 
                   <div className="flex justify-end gap-2">
-                    <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                    <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} disabled={loading}>
                       Cancelar
                     </Button>
                     <Button type="submit" disabled={loading}>
-                      {loading ? 'Salvando...' : (editingPayment ? 'Atualizar' : 'Criar Pagamento')}
+                      {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                      {editingPayment ? 'Atualizar' : 'Criar Pagamento'}
                     </Button>
                   </div>
                 </form>
@@ -438,49 +464,53 @@ const PaymentManagement = () => {
         </div>
       </CardHeader>
       <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Usuário</TableHead>
-              <TableHead>Tipo</TableHead>
-              <TableHead>Descrição</TableHead>
-              <TableHead>Valor</TableHead>
-              <TableHead>Vencimento</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Ações</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {payments.map((payment) => (
-              <TableRow key={payment.id}>
-                <TableCell>{payment.user_full_name || 'N/A'}</TableCell>
-                <TableCell>{getPaymentTypeBadge(payment.payment_type)}</TableCell>
-                <TableCell>{payment.description || '-'}</TableCell>
-                <TableCell>R$ {parseFloat(payment.amount.toString()).toFixed(2)}</TableCell>
-                <TableCell>{new Date(payment.due_date).toLocaleDateString('pt-BR')}</TableCell>
-                <TableCell>{getStatusBadge(payment.status)}</TableCell>
-                <TableCell>
-                  <div className="flex gap-2 justify-end">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleEdit(payment)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDelete(payment.id)}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </div>
-                </TableCell>
+        <div className="border rounded-lg overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Usuário</TableHead>
+                <TableHead>Tipo</TableHead>
+                <TableHead>Descrição</TableHead>
+                <TableHead>Valor</TableHead>
+                <TableHead>Vencimento</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {payments.map((payment) => (
+                <TableRow key={payment.id}>
+                  <TableCell>{payment.user_full_name || 'N/A'}</TableCell>
+                  <TableCell>{getPaymentTypeBadge(payment.payment_type)}</TableCell>
+                  <TableCell>{payment.description || '-'}</TableCell>
+                  <TableCell>R$ {parseFloat(payment.amount.toString()).toFixed(2)}</TableCell>
+                  <TableCell>{new Date(payment.due_date).toLocaleDateString('pt-BR')}</TableCell>
+                  <TableCell>{getStatusBadge(payment.status)}</TableCell>
+                  <TableCell>
+                    <div className="flex gap-2 justify-end">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleEdit(payment)}
+                        disabled={loading}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(payment.id)}
+                        disabled={loading}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </CardContent>
     </Card>
   );
