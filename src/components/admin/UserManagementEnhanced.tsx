@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { createClient } from '@supabase/supabase-js'; // Import createClient
+import { createClient } from '@supabase/supabase-js';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -15,7 +15,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { logAudit } from '@/lib/auditLogger';
-import { Tables, Constants, Database } from '@/integrations/supabase/types'; // Import Database type
+import { Tables, Constants, Database } from '@/integrations/supabase/types';
 import { userSchema } from '@/lib/validationSchemas';
 import { z } from 'zod';
 import { mapErrorToUserMessage } from '@/lib/errorHandler';
@@ -27,18 +27,29 @@ import {
   type AddressFormData
 } from "@/lib/addressService";
 
-// Initialize Supabase client with service role key for admin operations
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
 
-const supabaseAdmin = createClient<Database>(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-  auth: {
-    persistSession: false, // Admin client should not persist sessions
-    autoRefreshToken: false,
-  }
-});
+let supabaseAdmin: ReturnType<typeof createClient<Database>> | null = null;
 
-// Regular Supabase client (from client.ts) for non-admin operations
+if (!SUPABASE_URL) {
+  console.error("Erro: VITE_SUPABASE_URL não está definida nas variáveis de ambiente.");
+}
+if (!SUPABASE_SERVICE_ROLE_KEY) {
+  console.error("Erro: VITE_SUPABASE_SERVICE_ROLE_KEY não está definida nas variáveis de ambiente.");
+}
+
+if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+  supabaseAdmin = createClient<Database>(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    }
+  });
+} else {
+  console.error("Cliente Supabase Admin não pôde ser inicializado devido a variáveis de ambiente ausentes.");
+}
+
 import { supabase } from '@/integrations/supabase/client';
 
 type Profile = Tables<'profiles'>;
@@ -56,9 +67,8 @@ const UserManagementEnhanced = ({ onAuditLogSuccess }: UserManagementEnhancedPro
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null);
-  const [selectedUserEmail, setSelectedUserEmail] = useState<string | null>(null); // To store user email for password reset
+  const [selectedUserEmail, setSelectedUserEmail] = useState<string | null>(null);
   
-  // Edit Form State
   const [editForm, setEditForm] = useState({
     full_name: '',
     phone: '',
@@ -77,7 +87,6 @@ const UserManagementEnhanced = ({ onAuditLogSuccess }: UserManagementEnhancedPro
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
-  // Create Form State
   const [createForm, setCreateForm] = useState({
     email: '',
     password: '',
@@ -362,7 +371,6 @@ const UserManagementEnhanced = ({ onAuditLogSuccess }: UserManagementEnhancedPro
         name: avatarFile.name
       });
 
-      // Delete old avatar if exists
       if (selectedProfile?.avatar_url) {
         const oldPath = selectedProfile.avatar_url.split('/avatars/')[1];
         if (oldPath) {
@@ -510,7 +518,7 @@ const UserManagementEnhanced = ({ onAuditLogSuccess }: UserManagementEnhancedPro
       initial_payment_status: profile.initial_payment_status,
     });
     setAvatarPreview(profile.avatar_url || null);
-    setAvatarFile(null); // Reset file input
+    setAvatarFile(null);
     setAddressData(profile.address ? parseAddressFromStorage(profile.address) : {
       rua: '',
       complemento: '',
@@ -521,13 +529,17 @@ const UserManagementEnhanced = ({ onAuditLogSuccess }: UserManagementEnhancedPro
       pais: 'Brasil',
     });
 
-    // Fetch user email for password reset functionality using supabaseAdmin
-    const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(profile.id);
-    if (userError) {
-      console.error('Error fetching user email:', userError);
-      setSelectedUserEmail(null);
+    if (supabaseAdmin) {
+      const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(profile.id);
+      if (userError) {
+        console.error('Error fetching user email:', userError);
+        setSelectedUserEmail(null);
+      } else {
+        setSelectedUserEmail(userData.user?.email || null);
+      }
     } else {
-      setSelectedUserEmail(userData.user?.email || null);
+      console.warn("Supabase Admin client not initialized. Cannot fetch user email for password reset.");
+      setSelectedUserEmail(null);
     }
 
     setEditDialogOpen(true);
@@ -610,15 +622,22 @@ const UserManagementEnhanced = ({ onAuditLogSuccess }: UserManagementEnhancedPro
       });
       return;
     }
+    if (!supabaseAdmin) {
+      toast({
+        title: 'Erro',
+        description: 'Cliente Supabase Admin não inicializado. Verifique as variáveis de ambiente.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     setLoading(true);
     try {
-      // Use supabaseAdmin for password reset
       const { error } = await supabaseAdmin.auth.admin.generateLink({
         type: 'password_reset',
         email: selectedUserEmail,
         options: {
-          redirectTo: `${window.location.origin}/auth?reset=true`, // Redirect to auth page with reset param
+          redirectTo: `${window.location.origin}/auth?reset=true`,
         },
       });
 
@@ -626,7 +645,7 @@ const UserManagementEnhanced = ({ onAuditLogSuccess }: UserManagementEnhancedPro
 
       await logAudit({
         action: 'UPDATE',
-        table_name: 'auth.users', // Log against auth.users table
+        table_name: 'auth.users',
         record_id: selectedProfile?.id,
         details: { action: 'password_reset_email_sent', email: selectedUserEmail },
       });
@@ -639,6 +658,49 @@ const UserManagementEnhanced = ({ onAuditLogSuccess }: UserManagementEnhancedPro
     } catch (error: any) {
       toast({
         title: 'Erro ao enviar link de redefinição',
+        description: mapErrorToUserMessage(error),
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    if (!confirm('Tem certeza que deseja excluir este usuário? Esta ação não pode ser desfeita.')) return;
+    if (!supabaseAdmin) {
+      toast({
+        title: 'Erro',
+        description: 'Cliente Supabase Admin não inicializado. Verifique as variáveis de ambiente.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await supabaseAdmin.auth.admin.deleteUser(userId);
+
+      if (error) throw error;
+
+      await logAudit({
+        action: 'DELETE',
+        table_name: 'profiles',
+        record_id: userId,
+      });
+
+      toast({
+        title: 'Usuário excluído',
+        description: 'O usuário foi removido com sucesso.',
+        variant: 'default',
+      });
+
+      fetchProfiles();
+      fetchUserRoles();
+      onAuditLogSuccess();
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao excluir usuário',
         description: mapErrorToUserMessage(error),
         variant: 'destructive',
       });
@@ -748,41 +810,6 @@ const UserManagementEnhanced = ({ onAuditLogSuccess }: UserManagementEnhancedPro
     } catch (error: any) {
       toast({
         title: 'Erro ao atualizar aprovação',
-        description: mapErrorToUserMessage(error),
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDeleteUser = async (userId: string) => {
-    if (!confirm('Tem certeza que deseja excluir este usuário? Esta ação não pode ser desfeita.')) return;
-
-    setLoading(true);
-    try {
-      const { error } = await supabaseAdmin.auth.admin.deleteUser(userId); // Use supabaseAdmin for deleting user
-
-      if (error) throw error;
-
-      await logAudit({
-        action: 'DELETE',
-        table_name: 'profiles',
-        record_id: userId,
-      });
-
-      toast({
-        title: 'Usuário excluído',
-        description: 'O usuário foi removido com sucesso.',
-        variant: 'default',
-      });
-
-      fetchProfiles();
-      fetchUserRoles();
-      onAuditLogSuccess();
-    } catch (error: any) {
-      toast({
-        title: 'Erro ao excluir usuário',
         description: mapErrorToUserMessage(error),
         variant: 'destructive',
       });
