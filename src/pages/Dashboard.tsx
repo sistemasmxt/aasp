@@ -95,6 +95,47 @@ const Dashboard = () => {
 
   const { unreadCount, fetchUnreadCount, markAllMessagesAsRead } = useUnreadMessageCount(user?.id);
 
+  // Function to fetch unread messages for the popover
+  const fetchUnreadMessagesForPopover = async () => {
+    if (!user) {
+      setUnreadMessages([]);
+      return;
+    }
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .select('id, sender_id, content, created_at')
+        .eq('receiver_id', user.id)
+        .is('read_at', null)
+        .eq('is_group', false)
+        .order('created_at', { ascending: false })
+        .limit(5); // Limit to a few recent unread messages
+
+      if (error) throw error;
+
+      const messagesWithSenderNames = await Promise.all((data || []).map(async (msg) => {
+        const { data: senderProfile } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', msg.sender_id)
+          .single();
+        return {
+          type: 'message',
+          id: msg.id,
+          title: `Nova mensagem de ${senderProfile?.full_name || 'Usuário'}`,
+          description: msg.content || 'Mensagem sem conteúdo',
+          timestamp: msg.created_at,
+          sender_id: msg.sender_id,
+          is_read: false,
+        } as NotificationItem;
+      }));
+      setUnreadMessages(messagesWithSenderNames);
+    } catch (error) {
+      console.error('Error fetching unread messages for popover:', error);
+      setUnreadMessages([]);
+    }
+  };
+
   useEffect(() => {
     if (user) {
       // Load user profile
@@ -202,48 +243,8 @@ const Dashboard = () => {
     }
   }, [user, toast]);
 
-  // Fetch unread messages for the notification popover
+  // Fetch unread messages for the notification popover when it opens
   useEffect(() => {
-    const fetchUnreadMessagesForPopover = async () => {
-      if (!user) {
-        setUnreadMessages([]);
-        return;
-      }
-      try {
-        const { data, error } = await supabase
-          .from('messages')
-          .select('id, sender_id, content, created_at')
-          .eq('receiver_id', user.id)
-          .is('read_at', null)
-          .eq('is_group', false)
-          .order('created_at', { ascending: false })
-          .limit(5); // Limit to a few recent unread messages
-
-        if (error) throw error;
-
-        const messagesWithSenderNames = await Promise.all((data || []).map(async (msg) => {
-          const { data: senderProfile } = await supabase
-            .from('profiles')
-            .select('full_name')
-            .eq('id', msg.sender_id)
-            .single();
-          return {
-            type: 'message',
-            id: msg.id,
-            title: `Nova mensagem de ${senderProfile?.full_name || 'Usuário'}`,
-            description: msg.content || 'Mensagem sem conteúdo',
-            timestamp: msg.created_at,
-            sender_id: msg.sender_id,
-            is_read: false,
-          } as NotificationItem;
-        }));
-        setUnreadMessages(messagesWithSenderNames);
-      } catch (error) {
-        console.error('Error fetching unread messages for popover:', error);
-        setUnreadMessages([]);
-      }
-    };
-
     if (isNotificationsOpen && user) {
       fetchUnreadMessagesForPopover();
     }
@@ -383,6 +384,7 @@ const Dashboard = () => {
         .update({ read_at: new Date().toISOString() })
         .eq('id', notification.id);
       fetchUnreadCount(); // Update count after marking as read
+      fetchUnreadMessagesForPopover(); // Re-fetch messages for popover to update list
       setActiveView('chat');
       setSelectedChatUserId(notification.sender_id);
     } else if (notification.type === 'alert') {
