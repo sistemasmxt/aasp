@@ -173,23 +173,39 @@ const InitialPayment = () => {
               Após o pagamento, clique no botão abaixo para notificar o administrador.
             </CardDescription>
 
-            <Button
-              onClick={handleNotifyAdmin}
-              disabled={paymentStatus === 'pending' || loading}
-              className="w-full"
-            >
-              {paymentStatus === 'pending' ? (
-                <>
+            {paymentStatus === 'pending' ? (
+              <div className="space-y-4">
+                <Button
+                  disabled
+                  className="w-full"
+                >
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Aguardando Aprovação...
-                </>
-              ) : (
-                <>
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  Já Paguei! Notificar Administrador
-                </>
-              )}
-            </Button>
+                  Aguardando Aprovação do Administrador...
+                </Button>
+                <p className="text-sm text-muted-foreground">
+                  Seu pagamento foi registrado e está aguardando a verificação e aprovação de um administrador.
+                  Você será redirecionado automaticamente assim que for aprovado.
+                </p>
+              </div>
+            ) : (
+              <Button
+                onClick={handleNotifyAdmin}
+                disabled={loading}
+                className="w-full"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Notificando Administrador...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Já Paguei! Notificar Administrador
+                  </>
+                )}
+              </Button>
+            )}
 
             <Button variant="ghost" onClick={() => navigate('/')} className="text-sm">
               <ArrowLeft className="h-4 w-4 mr-2" />
