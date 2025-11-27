@@ -475,7 +475,11 @@ export type Database = {
         Args: { _group_id: string; _user_id: string }
         Returns: boolean
       }
-      "trigger-full-backup": { // Adicione a nova Edge Function aqui
+      "process-payment-notification": { // Renamed Edge Function
+        Args: Record<PropertyKey, never>;
+        Returns: Json;
+      }
+      "trigger-full-backup": {
         Args: Record<PropertyKey, never>;
         Returns: Json;
       }

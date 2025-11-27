@@ -4,10 +4,12 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Button } from '@/components/ui/button'; // Import Button
 import { Badge } from '@/components/ui/badge';
-import { Loader2, FileText, DollarSign, CheckCircle, XCircle, Clock, CalendarDays } from 'lucide-react';
+import { Loader2, FileText, DollarSign, CheckCircle, XCircle, Clock, CalendarDays, CreditCard } from 'lucide-react'; // Import CreditCard icon
 import { mapErrorToUserMessage } from '@/lib/errorHandler';
 import { Tables } from '@/integrations/supabase/types';
+import { PaymentModal } from '@/components/PaymentModal'; // Import PaymentModal
 
 type Payment = Tables<'payments'>;
 type Profile = Tables<'profiles'>;
@@ -18,6 +20,8 @@ const UserReports = () => {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [selectedPaymentForModal, setSelectedPaymentForModal] = useState<Payment | null>(null);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -77,6 +81,37 @@ const UserReports = () => {
       case 'initial': return 'Adesão';
       case 'recurring': return 'Mensalidade';
       default: return type;
+    }
+  };
+
+  const handlePayClick = (payment: Payment) => {
+    setSelectedPaymentForModal(payment);
+    setIsPaymentModalOpen(true);
+  };
+
+  const handlePaymentProcessed = () => {
+    setIsPaymentModalOpen(false);
+    // Refetch payments to update the list
+    if (user) {
+      setLoading(true);
+      supabase
+        .from('payments')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('due_date', { ascending: true })
+        .then(({ data, error }) => {
+          if (error) throw error;
+          setPayments(data || []);
+        })
+        .catch(error => {
+          console.error('Error refetching payments:', error);
+          toast({
+            title: 'Erro ao atualizar pagamentos',
+            description: mapErrorToUserMessage(error),
+            variant: 'destructive',
+          });
+        })
+        .finally(() => setLoading(false));
     }
   };
 
@@ -202,6 +237,7 @@ const UserReports = () => {
                   <TableHead>Valor</TableHead>
                   <TableHead>Vencimento</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Ações</TableHead> {/* New Actions column */}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -212,6 +248,19 @@ const UserReports = () => {
                     <TableCell>R$ {payment.amount.toFixed(2)}</TableCell>
                     <TableCell>{new Date(payment.due_date).toLocaleDateString('pt-BR')}</TableCell>
                     <TableCell>{getPaymentStatusBadge(payment.status)}</TableCell>
+                    <TableCell className="text-right">
+                      {(payment.status === 'pending' || payment.status === 'overdue') && (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => handlePayClick(payment)}
+                          disabled={loading}
+                        >
+                          <CreditCard className="h-4 w-4 mr-2" />
+                          Pagar
+                        </Button>
+                      )}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -219,6 +268,15 @@ const UserReports = () => {
           )}
         </CardContent>
       </Card>
+
+      {selectedPaymentForModal && (
+        <PaymentModal
+          isOpen={isPaymentModalOpen}
+          onClose={() => setIsPaymentModalOpen(false)}
+          paymentDetails={selectedPaymentForModal}
+          onPaymentProcessed={handlePaymentProcessed}
+        />
+      )}
     </div>
   );
 };

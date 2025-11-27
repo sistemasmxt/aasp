@@ -70,7 +70,7 @@ const InitialPayment = () => {
     setLoading(true);
     try {
       // Call the Edge Function instead of direct Supabase update
-      const { data, error } = await supabase.functions.invoke('notify-admin-payment', {
+      const { data, error } = await supabase.functions.invoke('process-payment-notification', { // Updated function name
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${await supabase.auth.getSession().then(s => s.data.session?.access_token)}`,
