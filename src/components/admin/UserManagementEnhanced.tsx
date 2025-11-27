@@ -570,7 +570,7 @@ const UserManagementEnhanced = ({ onAuditLogSuccess }: UserManagementEnhancedPro
                       variant="ghost"
                       size="sm"
                       onClick={() => handleToggleApproval(profile, profile.is_approved)}
-                      disabled={loading} {/* Simplified: only disable if loading */}
+                      disabled={loading} // Simplified: only disable if loading
                     >
                       {profile.is_approved ? (
                         <XCircle className="h-4 w-4 text-destructive" />
