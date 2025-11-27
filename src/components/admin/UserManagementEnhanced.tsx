@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { createClient } from '@supabase/supabase-js'; // Import createClient
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -15,7 +15,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { logAudit } from '@/lib/auditLogger';
-import { Tables, Constants } from '@/integrations/supabase/types';
+import { Tables, Constants, Database } from '@/integrations/supabase/types'; // Import Database type
 import { userSchema } from '@/lib/validationSchemas';
 import { z } from 'zod';
 import { mapErrorToUserMessage } from '@/lib/errorHandler';
@@ -26,6 +26,20 @@ import {
   parseAddressFromStorage,
   type AddressFormData
 } from "@/lib/addressService";
+
+// Initialize Supabase client with service role key for admin operations
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
+
+const supabaseAdmin = createClient<Database>(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  auth: {
+    persistSession: false, // Admin client should not persist sessions
+    autoRefreshToken: false,
+  }
+});
+
+// Regular Supabase client (from client.ts) for non-admin operations
+import { supabase } from '@/integrations/supabase/client';
 
 type Profile = Tables<'profiles'>;
 type UserRole = Tables<'user_roles'>;
@@ -507,8 +521,8 @@ const UserManagementEnhanced = ({ onAuditLogSuccess }: UserManagementEnhancedPro
       pais: 'Brasil',
     });
 
-    // Fetch user email for password reset functionality
-    const { data: userData, error: userError } = await supabase.auth.admin.getUserById(profile.id);
+    // Fetch user email for password reset functionality using supabaseAdmin
+    const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(profile.id);
     if (userError) {
       console.error('Error fetching user email:', userError);
       setSelectedUserEmail(null);
@@ -599,8 +613,13 @@ const UserManagementEnhanced = ({ onAuditLogSuccess }: UserManagementEnhancedPro
 
     setLoading(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(selectedUserEmail, {
-        redirectTo: `${window.location.origin}/auth?reset=true`, // Redirect to auth page with reset param
+      // Use supabaseAdmin for password reset
+      const { error } = await supabaseAdmin.auth.admin.generateLink({
+        type: 'password_reset',
+        email: selectedUserEmail,
+        options: {
+          redirectTo: `${window.location.origin}/auth?reset=true`, // Redirect to auth page with reset param
+        },
       });
 
       if (error) throw error;
@@ -742,7 +761,7 @@ const UserManagementEnhanced = ({ onAuditLogSuccess }: UserManagementEnhancedPro
 
     setLoading(true);
     try {
-      const { error } = await supabase.auth.admin.deleteUser(userId);
+      const { error } = await supabaseAdmin.auth.admin.deleteUser(userId); // Use supabaseAdmin for deleting user
 
       if (error) throw error;
 
