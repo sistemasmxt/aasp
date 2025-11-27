@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAdmin } from '@/hooks/useAdmin';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Users, Camera, DollarSign, Shield, LogOut, Wrench, Bell, Mail, CheckCircle, XCircle, Loader2, DatabaseBackup, Tool } from 'lucide-react';
+import { Loader2, DatabaseBackup } from '@/lib/lucide-icons'; // Importar apenas os ícones que não são usados dinamicamente ou que são usados como fallback
+import { getLucideIconByName } from '@/lib/lucide-icons'; // Importar a função para obter ícones dinamicamente
 import logo from '@/img/logo.png';
 import { useToast } from '@/hooks/use-toast';
 import UserManagement from '@/components/admin/UserManagementEnhanced';
@@ -118,6 +119,18 @@ const AdminPanel = () => {
     return null;
   }
 
+  const ArrowLeftIcon = getLucideIconByName('ArrowLeft');
+  const BellIcon = getLucideIconByName('Bell');
+  const DollarSignIcon = getLucideIconByName('DollarSign');
+  const CheckCircleIcon = getLucideIconByName('CheckCircle');
+  const LogOutIcon = getLucideIconByName('LogOut');
+  const ShieldIcon = getLucideIconByName('Shield');
+  const UsersIcon = getLucideIconByName('Users');
+  const CameraIcon = getLucideIconByName('Camera');
+  const WrenchIcon = getLucideIconByName('Wrench');
+  const ToolIcon = getLucideIconByName('Tool');
+
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card sticky top-0 z-50">
@@ -125,7 +138,7 @@ const AdminPanel = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')}>
-                <ArrowLeft className="h-5 w-5" />
+                <ArrowLeftIcon className="h-5 w-5" />
               </Button>
               <div className="flex items-center gap-3">
                 <img src={logo} alt="AASP Logo" className="h-8 w-8" />
@@ -139,7 +152,7 @@ const AdminPanel = () => {
               <Popover open={isNotificationsOpen} onOpenChange={setIsNotificationsOpen}>
                 <PopoverTrigger asChild>
                   <Button variant="ghost" size="icon" className="relative">
-                    <Bell className="h-5 w-5" />
+                    <BellIcon className="h-5 w-5" />
                     {unreadCount > 0 && (
                       <Badge
                         variant="destructive"
@@ -176,9 +189,9 @@ const AdminPanel = () => {
                             }}
                           >
                             {notification.type === 'payment_notification' ? (
-                              <DollarSign className="h-5 w-5 text-green-500 flex-shrink-0" />
+                              <DollarSignIcon className="h-5 w-5 text-green-500 flex-shrink-0" />
                             ) : (
-                              <Bell className="h-5 w-5 text-primary flex-shrink-0" />
+                              <BellIcon className="h-5 w-5 text-primary flex-shrink-0" />
                             )}
                             <div>
                               <p className="font-medium text-sm">{notification.message}</p>
@@ -188,7 +201,7 @@ const AdminPanel = () => {
                               <p className="text-xs text-muted-foreground">{new Date(notification.created_at).toLocaleString('pt-BR')}</p>
                             </div>
                             {!notification.is_read && (
-                              <CheckCircle className="h-4 w-4 text-green-500 ml-auto" />
+                              <CheckCircleIcon className="h-4 w-4 text-green-500 ml-auto" />
                             )}
                           </div>
                         ))
@@ -205,7 +218,7 @@ const AdminPanel = () => {
                 </PopoverContent>
               </Popover>
               <Button variant="outline" size="sm" onClick={handleLogout}>
-                <LogOut className="h-4 w-4 mr-2" />
+                <LogOutIcon className="h-4 w-4 mr-2" />
                 Logout
               </Button>
             </div>
@@ -217,31 +230,31 @@ const AdminPanel = () => {
         <Tabs defaultValue="dashboard" className="space-y-6">
           <TabsList className="grid w-full grid-cols-7"> {/* Adjusted grid-cols to 7 */}
             <TabsTrigger value="dashboard">
-              <Shield className="h-4 w-4 mr-2" />
+              <ShieldIcon className="h-4 w-4 mr-2" />
               Dashboard
             </TabsTrigger>
             <TabsTrigger value="users">
-              <Users className="h-4 w-4 mr-2" />
+              <UsersIcon className="h-4 w-4 mr-2" />
               Usuários
             </TabsTrigger>
             <TabsTrigger value="cameras">
-              <Camera className="h-4 w-4 mr-2" />
+              <CameraIcon className="h-4 w-4 mr-2" />
               Câmeras
             </TabsTrigger>
             <TabsTrigger value="payments">
-              <DollarSign className="h-4 w-4 mr-2" />
+              <DollarSignIcon className="h-4 w-4 mr-2" />
               Pagamentos
             </TabsTrigger>
             <TabsTrigger value="utilities">
-              <Wrench className="h-4 w-4 mr-2" />
+              <WrenchIcon className="h-4 w-4 mr-2" />
               Utilidades
             </TabsTrigger>
             <TabsTrigger value="logs">
-              <Shield className="h-4 w-4 mr-2" />
+              <ShieldIcon className="h-4 w-4 mr-2" />
               Logs
             </TabsTrigger>
             <TabsTrigger value="tools"> {/* New tab for tools */}
-              <Tool className="h-4 w-4 mr-2" />
+              <ToolIcon className="h-4 w-4 mr-2" />
               Ferramentas
             </TabsTrigger>
           </TabsList>
@@ -274,7 +287,7 @@ const AdminPanel = () => {
             <Card className="p-6">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Tool className="h-6 w-6 text-primary" />
+                  <ToolIcon className="h-6 w-6 text-primary" />
                   Ferramentas Administrativas
                 </CardTitle>
                 <CardDescription>
