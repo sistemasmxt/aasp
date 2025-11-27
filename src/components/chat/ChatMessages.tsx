@@ -4,10 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Check, CheckCheck } from "lucide-react";
+import { Send, Check, CheckCheck, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { mapErrorToUserMessage } from "@/lib/errorHandler";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile"; // Import useIsMobile
 
 interface Message {
   id: string;
@@ -29,14 +30,16 @@ interface ChatMessagesProps {
     full_name: string | null;
     avatar_url: string | null;
   } | null;
+  onBack?: () => void; // Optional prop for back button on mobile
 }
 
-export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: ChatMessagesProps) => {
+export const ChatMessages = ({ currentUserId, recipientId, recipientProfile, onBack }: ChatMessagesProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const isMobile = useIsMobile(); // Use the hook
 
   // Mark messages as read when viewing
   useEffect(() => {
@@ -304,20 +307,23 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
   };
 
   return (
-    <>
-      <div className="flex items-center gap-3 p-4 border-b border-border bg-card">
-        <Avatar className="h-10 w-10">
-          <AvatarImage src={recipientProfile?.avatar_url || ""} />
-          <AvatarFallback className="bg-secondary text-secondary-foreground">
-            {recipientProfile?.full_name?.charAt(0) || "U"}
-          </AvatarFallback>
-        </Avatar>
-        <div>
-          <p className="font-medium text-foreground">
-            {recipientProfile?.full_name || "Usuário"}
-          </p>
+    <div className="flex flex-col h-full"> {/* Ensure it takes full height of parent */}
+      {/* Header for desktop, or if not mobile and no onBack prop */}
+      {!isMobile && (
+        <div className="flex items-center gap-3 p-4 border-b border-border bg-card">
+          <Avatar className="h-10 w-10">
+            <AvatarImage src={recipientProfile?.avatar_url || ""} />
+            <AvatarFallback className="bg-secondary text-secondary-foreground">
+              {recipientProfile?.full_name?.charAt(0) || "U"}
+            </AvatarFallback>
+          </Avatar>
+          <div>
+            <p className="font-medium text-foreground">
+              {recipientProfile?.full_name || "Usuário"}
+            </p>
+          </div>
         </div>
-      </div>
+      )}
 
       <ScrollArea className="flex-1 p-4">
         <div className="space-y-4">
@@ -377,7 +383,7 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
       </div>
       </ScrollArea>
 
-      <div className="p-4 border-t border-border bg-card">
+      <div className="p-4 border-t border-border bg-card sticky bottom-0"> {/* Made sticky bottom */}
         <div className="flex gap-2">
           <Input
             value={newMessage}
@@ -406,6 +412,6 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile }: C
           </Button>
         </div>
       </div>
-    </>
+    </div>
   );
 };

@@ -44,8 +44,9 @@ import UtilitiesList from "@/components/UtilitiesList";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useUnreadMessageCount } from "@/hooks/useUnreadMessageCount"; // Import the new hook
 import UserReports from "@/components/Reports/UserReports"; // Import the new UserReports component
+import { useIsMobile } from "@/hooks/use-mobile"; // Import useIsMobile hook
 
-type DashboardView = 'home' | 'chat' | 'cameras' | 'map' | 'utilities' | 'reports'; // Added 'reports'
+type DashboardView = 'home' | 'chat' | 'cameras' | 'map' | 'utilities' | 'reports';
 
 interface NotificationItem {
   type: 'message' | 'alert';
@@ -93,6 +94,8 @@ const Dashboard = () => {
   const [selectedChatUserId, setSelectedChatUserId] = useState<string | null>(null);
   const [selectedCamera, setSelectedCamera] = useState<any>(null);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+
+  const isMobile = useIsMobile(); // Use the hook
 
   const { unreadCount, fetchUnreadCount, markAllMessagesAsRead } = useUnreadMessageCount(user?.id);
 
@@ -406,80 +409,85 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-blue-950">
       {/* Header */}
-      <header className="border-b border-border bg-card sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              {activeView !== 'home' && (
-                <Button variant="ghost" size="icon" onClick={() => setActiveView('home')} className="mr-2">
-                  <ArrowLeft className="h-5 w-5" />
-                </Button>
-              )}
-              <img src={logo} alt="AASP Logo" className="h-10 w-10" />
-              <span className="text-2xl font-bold text-foreground">AASP</span>
-            </div>
+      <header className="border-b border-border bg-card sticky top-0 z-50 h-[var(--header-height)] flex items-center">
+        <div className="container mx-auto px-4 flex items-center justify-between w-full">
+          {/* Left side: Back button (mobile), Logo, Title */}
+          <div className="flex items-center gap-3">
+            {activeView !== 'home' && (
+              <Button variant="ghost" size="icon" onClick={() => setActiveView('home')} className="mr-2">
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+            )}
+            <img src={logo} alt="AASP Logo" className="h-8 w-8 md:h-10 md:w-10" />
+            <span className="text-xl md:text-2xl font-bold text-foreground">AASP</span>
+          </div>
 
-            <div className="hidden md:flex items-center gap-4">
-              <Popover open={isNotificationsOpen} onOpenChange={setIsNotificationsOpen}>
-                <PopoverTrigger asChild>
-                  <Button variant="ghost" size="icon" className="relative">
-                    <Bell className="h-5 w-5" />
-                    {totalNotifications > 0 && (
-                      <Badge
-                        variant="destructive"
-                        className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs"
-                      >
-                        {totalNotifications}
-                      </Badge>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-80 p-0">
-                  <CardHeader className="p-4 border-b">
-                    <CardTitle className="text-lg">Notificações</CardTitle>
-                  </CardHeader>
-                  <ScrollArea className="h-[300px]">
-                    <div className="p-4 space-y-2">
-                      {emergencyAlerts.filter(alert => alert.is_active).map((alert) => (
-                        <div key={alert.id} className="flex items-start gap-2 p-2 hover:bg-muted rounded-md cursor-pointer" onClick={() => handleNotificationClick({
-                          type: 'alert',
-                          id: alert.id,
-                          title: `🚨 ALERTA: ${alert.alert_type.toUpperCase()}`,
-                          description: `${alert.user_name} ativou um alerta!`,
-                          timestamp: alert.created_at,
-                        })}>
-                          <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0" />
-                          <div>
-                            <p className="font-medium text-sm">🚨 ALERTA: {alert.alert_type.toUpperCase()}</p>
-                            <p className="text-xs text-muted-foreground">{alert.user_name} ativou um alerta!</p>
-                            <p className="text-xs text-muted-foreground">{new Date(alert.created_at).toLocaleString('pt-BR')}</p>
-                          </div>
-                        </div>
-                      ))}
-                      {unreadMessages.map((msg) => (
-                        <div key={msg.id} className="flex items-start gap-2 p-2 hover:bg-muted rounded-md cursor-pointer" onClick={() => handleNotificationClick(msg)}>
-                          <Mail className="h-5 w-5 text-primary flex-shrink-0" />
-                          <div>
-                            <p className="font-medium text-sm">{msg.title}</p>
-                            <p className="text-xs text-muted-foreground truncate">{msg.description}</p>
-                            <p className="text-xs text-muted-foreground">{new Date(msg.timestamp).toLocaleString('pt-BR')}</p>
-                          </div>
-                        </div>
-                      ))}
-                      {totalNotifications === 0 && (
-                        <p className="text-center text-muted-foreground text-sm py-4">Nenhuma notificação nova.</p>
-                      )}
-                    </div>
-                  </ScrollArea>
+          {/* Right side: Desktop actions (notifications, profile, logout) and Mobile actions (notifications, menu) */}
+          <div className="flex items-center gap-2 md:gap-4">
+            {/* Notifications Icon (visible on both mobile and desktop) */}
+            <Popover open={isNotificationsOpen} onOpenChange={setIsNotificationsOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="icon" className="relative">
+                  <Bell className="h-5 w-5" />
                   {totalNotifications > 0 && (
-                    <div className="p-2 border-t">
-                      <Button variant="ghost" className="w-full text-sm" onClick={markAllMessagesAsRead}>
-                        Marcar todas como lidas
-                      </Button>
-                    </div>
+                    <Badge
+                      variant="destructive"
+                      className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs"
+                    >
+                      {totalNotifications}
+                    </Badge>
                   )}
-                </PopoverContent>
-              </Popover>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 p-0">
+                <CardHeader className="p-4 border-b">
+                  <CardTitle className="text-lg">Notificações</CardTitle>
+                </CardHeader>
+                <ScrollArea className="h-[300px]">
+                  <div className="p-4 space-y-2">
+                    {emergencyAlerts.filter(alert => alert.is_active).map((alert) => (
+                      <div key={alert.id} className="flex items-start gap-2 p-2 hover:bg-muted rounded-md cursor-pointer" onClick={() => handleNotificationClick({
+                        type: 'alert',
+                        id: alert.id,
+                        title: `🚨 ALERTA: ${alert.alert_type.toUpperCase()}`,
+                        description: `${alert.user_name} ativou um alerta!`,
+                        timestamp: alert.created_at,
+                      })}>
+                        <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0" />
+                        <div>
+                          <p className="font-medium text-sm">🚨 ALERTA: {alert.alert_type.toUpperCase()}</p>
+                          <p className="text-xs text-muted-foreground">{alert.user_name} ativou um alerta!</p>
+                          <p className="text-xs text-muted-foreground">{new Date(alert.created_at).toLocaleString('pt-BR')}</p>
+                        </div>
+                      </div>
+                    ))}
+                    {unreadMessages.map((msg) => (
+                      <div key={msg.id} className="flex items-start gap-2 p-2 hover:bg-muted rounded-md cursor-pointer" onClick={() => handleNotificationClick(msg)}>
+                        <Mail className="h-5 w-5 text-primary flex-shrink-0" />
+                        <div>
+                          <p className="font-medium text-sm">{msg.title}</p>
+                          <p className="text-xs text-muted-foreground truncate">{msg.description}</p>
+                          <p className="text-xs text-muted-foreground">{new Date(msg.timestamp).toLocaleString('pt-BR')}</p>
+                        </div>
+                      </div>
+                    ))}
+                    {totalNotifications === 0 && (
+                      <p className="text-center text-muted-foreground text-sm py-4">Nenhuma notificação nova.</p>
+                    )}
+                  </div>
+                </ScrollArea>
+                {totalNotifications > 0 && (
+                  <div className="p-2 border-t">
+                    <Button variant="ghost" className="w-full text-sm" onClick={markAllMessagesAsRead}>
+                      Marcar todas como lidas
+                    </Button>
+                  </div>
+                )}
+              </PopoverContent>
+            </Popover>
+
+            {/* Desktop-only actions */}
+            <div className="hidden md:flex items-center gap-4">
               <ProfileEditModal profile={profile} onProfileUpdate={setProfile} open={isProfileModalOpen} onOpenChange={setIsProfileModalOpen} />
               <div className="flex items-center gap-3 ml-4">
                 <Avatar>
@@ -577,7 +585,7 @@ const Dashboard = () => {
                 toast({ title: "🚑 Contato com a Ambulância", description: "Chamando a ambulância...", variant: "destructive" });
               }
             }}
-            onHelpAndReports={() => handleSelectView('reports')} // Updated to navigate to reports
+            onHelpAndReports={() => handleSelectView('reports')}
           />
         )}
 
