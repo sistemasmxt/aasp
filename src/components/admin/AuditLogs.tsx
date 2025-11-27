@@ -3,12 +3,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { FileText, Loader2 } from 'lucide-react'; // Import Loader2
-import { useToast } from '@/hooks/use-toast'; // Import useToast
+import { FileText, Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface AuditLog {
   id: string;
-  user_id: string;
+  user_id: string | null; // user_id can be null
   action: string;
   table_name: string;
   record_id: string | null;
@@ -16,21 +16,21 @@ interface AuditLog {
   created_at: string;
   profiles?: {
     full_name: string;
-  };
+  } | null; // profiles can be null
 }
 
 interface AuditLogsProps {
-  refetchTrigger: number; // A prop to trigger refetch when its value changes
+  refetchTrigger: number;
 }
 
 const AuditLogs = ({ refetchTrigger }: AuditLogsProps) => {
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
-  const { toast } = useToast(); // Initialize useToast
+  const { toast } = useToast();
 
   useEffect(() => {
     fetchLogs();
-  }, [refetchTrigger]); // Re-fetch logs when refetchTrigger changes
+  }, [refetchTrigger]);
 
   const fetchLogs = async () => {
     setLoading(true);
@@ -43,14 +43,18 @@ const AuditLogs = ({ refetchTrigger }: AuditLogsProps) => {
 
       if (error) throw error;
 
-      // Fetch user profiles for each log
       const logsWithProfiles = await Promise.all(
         (data || []).map(async (log) => {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('full_name')
-            .eq('id', log.user_id)
-            .single();
+          let profile = null;
+          // Only try to fetch profile if user_id is not null
+          if (log.user_id) {
+            const { data: fetchedProfile } = await supabase
+              .from('profiles')
+              .select('full_name')
+              .eq('id', log.user_id)
+              .single();
+            profile = fetchedProfile;
+          }
 
           return {
             ...log,
@@ -139,7 +143,7 @@ const AuditLogs = ({ refetchTrigger }: AuditLogsProps) => {
                     {new Date(log.created_at).toLocaleString('pt-BR')}
                   </TableCell>
                   <TableCell>
-                    {log.profiles?.full_name || 'Usuário não encontrado'}
+                    {log.profiles?.full_name || 'Usuário Desconhecido'}
                   </TableCell>
                   <TableCell>{getActionBadge(log.action)}</TableCell>
                   <TableCell>{getTableLabel(log.table_name)}</TableCell>
