@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAdmin } from '@/hooks/useAdmin';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Users, Camera, DollarSign, Shield, LogOut, Wrench, Bell, Mail, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { ArrowLeft, Users, Camera, DollarSign, Shield, LogOut, Wrench, Bell, Mail, CheckCircle, XCircle, Loader2, DatabaseBackup, Tool } from 'lucide-react';
 import logo from '@/img/logo.png';
 import { useToast } from '@/hooks/use-toast';
 import UserManagement from '@/components/admin/UserManagementEnhanced';
@@ -16,8 +16,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { useAdminNotifications } from '@/hooks/useAdminNotifications'; // Import the new hook
-import { CardHeader, CardTitle } from '@/components/ui/card'; // Import CardHeader and CardTitle
+import { useAdminNotifications } from '@/hooks/useAdminNotifications';
+import { CardHeader, CardTitle, Card, CardDescription, CardContent } from '@/components/ui/card';
 
 const AdminPanel = () => {
   const { isAdmin, loading: adminLoading } = useAdmin();
@@ -25,8 +25,8 @@ const AdminPanel = () => {
   const { toast } = useToast();
   const [auditLogsRefetchTrigger, setAuditLogsRefetchTrigger] = useState(0);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isBackupLoading, setIsBackupLoading] = useState(false);
 
-  // Get the admin user ID for the notifications hook
   const [currentAdminId, setCurrentAdminId] = useState<string | undefined>(undefined);
   useEffect(() => {
     supabase.auth.getUser().then(res => {
@@ -40,7 +40,7 @@ const AdminPanel = () => {
     loading: notificationsLoading,
     markNotificationAsRead,
     markAllNotificationsAsRead,
-    fetchNotifications // Added to manually refetch if needed
+    fetchNotifications
   } = useAdminNotifications(currentAdminId);
 
   const handleLogout = async () => {
@@ -59,17 +59,52 @@ const AdminPanel = () => {
     }
   }, [isAdmin, adminLoading, navigate]);
 
-  // Function to trigger refetch of audit logs
   const triggerAuditLogsRefetch = () => {
     setAuditLogsRefetchTrigger(prev => prev + 1);
   };
 
-  // Refetch notifications when popover opens
   useEffect(() => {
     if (isNotificationsOpen) {
       fetchNotifications();
     }
   }, [isNotificationsOpen, fetchNotifications]);
+
+  const handleFullBackup = async () => {
+    if (!confirm('Tem certeza que deseja iniciar um backup completo? Esta operação pode levar alguns minutos e é recomendável para fins de auditoria e não como backup principal.')) {
+      return;
+    }
+
+    setIsBackupLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('trigger-full-backup', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${await supabase.auth.getSession().then(s => s.data.session?.access_token)}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (error) throw error;
+      if (data && data.error) throw new Error(data.error);
+
+      toast({
+        title: "Backup Iniciado!",
+        description: "O processo de backup completo foi iniciado. Verifique as notificações para detalhes.",
+        variant: "default",
+      });
+      triggerAuditLogsRefetch(); // Log this action
+      fetchNotifications(); // Refresh admin notifications
+    } catch (error: any) {
+      console.error('Error triggering full backup:', error);
+      toast({
+        title: "Erro ao iniciar backup",
+        description: error.message || "Não foi possível iniciar o backup. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsBackupLoading(false);
+    }
+  };
 
   if (adminLoading) {
     return (
@@ -134,9 +169,7 @@ const AdminPanel = () => {
                             className={`flex items-start gap-2 p-2 rounded-md cursor-pointer ${notification.is_read ? 'bg-muted/50' : 'bg-accent/10 hover:bg-accent/20'}`}
                             onClick={() => {
                               markNotificationAsRead(notification.id);
-                              // Optionally navigate to user management or payment management
                               if (notification.type === 'payment_notification' && notification.details?.user_id) {
-                                // Example: navigate to users tab and potentially highlight the user
                                 navigate(`/admin?tab=users&userId=${notification.details.user_id}`);
                               }
                               setIsNotificationsOpen(false);
@@ -182,7 +215,7 @@ const AdminPanel = () => {
 
       <div className="container mx-auto px-4 py-8">
         <Tabs defaultValue="dashboard" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7"> {/* Adjusted grid-cols to 7 */}
             <TabsTrigger value="dashboard">
               <Shield className="h-4 w-4 mr-2" />
               Dashboard
@@ -206,6 +239,10 @@ const AdminPanel = () => {
             <TabsTrigger value="logs">
               <Shield className="h-4 w-4 mr-2" />
               Logs
+            </TabsTrigger>
+            <TabsTrigger value="tools"> {/* New tab for tools */}
+              <Tool className="h-4 w-4 mr-2" />
+              Ferramentas
             </TabsTrigger>
           </TabsList>
 
@@ -231,6 +268,45 @@ const AdminPanel = () => {
 
           <TabsContent value="logs">
             <AuditLogs refetchTrigger={auditLogsRefetchTrigger} />
+          </TabsContent>
+
+          <TabsContent value="tools"> {/* Content for the new tools tab */}
+            <Card className="p-6">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Tool className="h-6 w-6 text-primary" />
+                  Ferramentas Administrativas
+                </CardTitle>
+                <CardDescription>
+                  Gerencie operações avançadas do sistema.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div>
+                    <h3 className="font-semibold text-lg">Backup Completo</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Inicia um processo de backup de dados do banco de dados e arquivos do Supabase Storage.
+                      <br />
+                      **Importante:** Para backups completos e restauráveis, utilize as ferramentas de backup do painel Supabase.
+                    </p>
+                  </div>
+                  <Button onClick={handleFullBackup} disabled={isBackupLoading}>
+                    {isBackupLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Iniciando Backup...
+                      </>
+                    ) : (
+                      <>
+                        <DatabaseBackup className="h-4 w-4 mr-2" />
+                        Iniciar Backup
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>

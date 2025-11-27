@@ -475,6 +475,10 @@ export type Database = {
         Args: { _group_id: string; _user_id: string }
         Returns: boolean
       }
+      "trigger-full-backup": { // Adicione a nova Edge Function aqui
+        Args: Record<PropertyKey, never>;
+        Returns: Json;
+      }
     }
     Enums: {
       app_role: "admin" | "user"
