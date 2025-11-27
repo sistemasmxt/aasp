@@ -73,22 +73,29 @@ serve(async (req) => {
     nextMonth.setDate(10); // Set due date to 10th of next month
     const dueDate = nextMonth.toISOString().split('T')[0];
 
+    let paymentId: string | undefined;
+
     if (existingPayment) {
       // If an initial payment exists and is not yet paid, update its status to pending
       if (existingPayment.status === 'unpaid') {
-        const { error: updatePaymentError } = await supabaseClient
+        const { data: updatedPayment, error: updatePaymentError } = await supabaseClient
           .from('payments')
           .update({ status: 'pending' })
-          .eq('id', existingPayment.id);
+          .eq('id', existingPayment.id)
+          .select('id')
+          .single();
 
         if (updatePaymentError) {
           console.error('Error updating existing payment status:', updatePaymentError);
           throw new Error('Failed to update existing payment status.');
         }
+        paymentId = updatedPayment?.id;
+      } else {
+        paymentId = existingPayment.id; // Use existing payment ID if already pending/paid
       }
     } else {
       // If no initial payment exists, insert a new one
-      const { error: insertPaymentError } = await supabaseClient
+      const { data: insertedPayment, error: insertPaymentError } = await supabaseClient
         .from('payments')
         .insert({
           user_id: userId,
@@ -97,12 +104,40 @@ serve(async (req) => {
           status: 'pending',
           payment_type: 'initial',
           description: 'Pagamento de Adesão Inicial',
-        });
+        })
+        .select('id')
+        .single();
 
       if (insertPaymentError) {
         console.error('Error inserting new payment:', insertPaymentError);
         throw new Error('Failed to insert new payment record.');
       }
+      paymentId = insertedPayment?.id;
+    }
+
+    // 3. Insert a notification for the admin
+    const { data: profileData, error: profileError } = await supabaseClient
+      .from('profiles')
+      .select('full_name')
+      .eq('id', userId)
+      .single();
+
+    const userName = profileData?.full_name || 'Um usuário';
+
+    const { error: notificationError } = await supabaseClient
+      .from('admin_notifications')
+      .insert({
+        user_id: userId,
+        type: 'payment_notification',
+        message: `${userName} notificou um pagamento de adesão!`,
+        details: { payment_id: paymentId, user_id: userId, amount: INITIAL_PAYMENT_AMOUNT },
+        is_read: false,
+      });
+
+    if (notificationError) {
+      console.error('Error inserting admin notification:', notificationError);
+      // Don't throw here, as the payment process itself was successful.
+      // Log the error but allow the function to complete.
     }
 
     return new Response(JSON.stringify({ message: 'Admin notified successfully' }), {
