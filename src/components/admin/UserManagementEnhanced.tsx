@@ -5,14 +5,15 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Users, Shield, ShieldOff, Pencil, Plus, Trash2, CheckCircle, XCircle, Loader2, Upload, Save, MapPin } from 'lucide-react';
+import { Users, Shield, ShieldOff, Pencil, Plus, Trash2, CheckCircle, XCircle, Loader2, Upload, Save, MapPin, Settings } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Textarea } from '@/components/ui/textarea'; // Import Textarea for consistency, though not used for address here
+import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { logAudit } from '@/lib/auditLogger';
 import { Tables, Constants } from '@/integrations/supabase/types';
 import { userSchema } from '@/lib/validationSchemas';
@@ -186,6 +187,13 @@ const UserManagementEnhanced = ({ onAuditLogSuccess }: UserManagementEnhancedPro
       };
 
       img.src = URL.createObjectURL(file);
+
+      setTimeout(() => {
+        resolve({
+          isValid: false,
+          error: "Timeout ao validar imagem. Tente novamente."
+        });
+      }, 10000);
     });
   };
 
@@ -825,9 +833,9 @@ const UserManagementEnhanced = ({ onAuditLogSuccess }: UserManagementEnhancedPro
           </DialogHeader>
 
           <Tabs defaultValue="profile" className="w-full">
-            <TabsList className="grid w-full grid-cols-1"> {/* Only one tab for now */}
+            <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="profile">Dados Pessoais</TabsTrigger>
-              {/* Password change for other users is complex and security-sensitive, omitted for now. */}
+              <TabsTrigger value="settings" disabled>Configurações</TabsTrigger> {/* Dummy tab */}
             </TabsList>
 
             <TabsContent value="profile" className="space-y-6">
@@ -1048,6 +1056,9 @@ const UserManagementEnhanced = ({ onAuditLogSuccess }: UserManagementEnhancedPro
                   {loading ? 'Salvando...' : 'Salvar Alterações'}
                 </Button>
               </div>
+            </TabsContent>
+            <TabsContent value="settings">
+                <p className="text-muted-foreground">Configurações adicionais virão aqui.</p>
             </TabsContent>
           </Tabs>
         </DialogContent>
