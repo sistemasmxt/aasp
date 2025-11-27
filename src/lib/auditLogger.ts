@@ -13,12 +13,20 @@ interface LogAuditParams {
 
 export const logAudit = async ({ action, table_name, record_id, details }: LogAuditParams) => {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    console.log(`[AuditLogger] Attempting to log action: ${action} on table: ${table_name}`);
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
     
-    if (!user) {
-      console.error('User not authenticated for audit log');
+    if (userError) {
+      console.error('[AuditLogger] Error fetching user for audit log:', userError);
       return;
     }
+
+    if (!user) {
+      console.warn('[AuditLogger] User not authenticated for audit log. Skipping log entry.');
+      return;
+    }
+
+    console.log(`[AuditLogger] User authenticated: ${user.id}. Inserting log...`);
 
     const { error } = await supabase.from('admin_logs').insert([{
       user_id: user.id,
@@ -29,9 +37,11 @@ export const logAudit = async ({ action, table_name, record_id, details }: LogAu
     }]);
 
     if (error) {
-      console.error('Error logging audit:', error);
+      console.error('[AuditLogger] Error inserting audit log:', error);
+    } else {
+      console.log(`[AuditLogger] Successfully inserted audit log for user ${user.id}, action ${action}, table ${table_name}.`);
     }
   } catch (error) {
-    console.error('Error in audit logger:', error);
+    console.error('[AuditLogger] Unexpected error in audit logger:', error);
   }
 };

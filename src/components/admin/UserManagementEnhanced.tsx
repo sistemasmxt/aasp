@@ -19,7 +19,11 @@ import { mapErrorToUserMessage } from '@/lib/errorHandler';
 type Profile = Tables<'profiles'>;
 type UserRole = Tables<'user_roles'>;
 
-const UserManagementEnhanced = () => {
+interface UserManagementEnhancedProps {
+  onAuditLogSuccess: () => void;
+}
+
+const UserManagementEnhanced = ({ onAuditLogSuccess }: UserManagementEnhancedProps) => {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [userRoles, setUserRoles] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -131,7 +135,7 @@ const UserManagementEnhanced = () => {
 
         await logAudit({
           action: 'CREATE',
-          table_name: 'users',
+          table_name: 'profiles', // Changed from 'users' to 'profiles' for consistency
           record_id: user.id,
           details: { email: validatedData.email, full_name: validatedData.full_name, is_admin: validatedData.is_admin },
         });
@@ -153,6 +157,7 @@ const UserManagementEnhanced = () => {
         });
         fetchProfiles();
         fetchUserRoles();
+        onAuditLogSuccess(); // Trigger refetch for audit logs
       }
     } catch (error: any) {
       if (error instanceof z.ZodError) {
@@ -200,7 +205,7 @@ const UserManagementEnhanced = () => {
 
       await logAudit({
         action: 'UPDATE',
-        table_name: 'users',
+        table_name: 'profiles',
         record_id: selectedProfile.id,
         details: validatedData,
       });
@@ -213,6 +218,7 @@ const UserManagementEnhanced = () => {
 
       setEditDialogOpen(false);
       fetchProfiles();
+      onAuditLogSuccess(); // Trigger refetch for audit logs
     } catch (error: any) {
       if (error instanceof z.ZodError) {
         toast({
@@ -278,6 +284,7 @@ const UserManagementEnhanced = () => {
       }
 
       fetchUserRoles();
+      onAuditLogSuccess(); // Trigger refetch for audit logs
     } catch (error: any) {
       toast({
         title: 'Erro ao atualizar permissões',
@@ -329,6 +336,7 @@ const UserManagementEnhanced = () => {
       });
 
       fetchProfiles(); // Re-fetch profiles to update UI
+      onAuditLogSuccess(); // Trigger refetch for audit logs
     } catch (error: any) {
       toast({
         title: 'Erro ao atualizar aprovação',
@@ -352,7 +360,7 @@ const UserManagementEnhanced = () => {
 
       await logAudit({
         action: 'DELETE',
-        table_name: 'users',
+        table_name: 'profiles', // Changed from 'users' to 'profiles' for consistency
         record_id: userId,
       });
 
@@ -364,6 +372,7 @@ const UserManagementEnhanced = () => {
 
       fetchProfiles();
       fetchUserRoles();
+      onAuditLogSuccess(); // Trigger refetch for audit logs
     } catch (error: any) {
       toast({
         title: 'Erro ao excluir usuário',

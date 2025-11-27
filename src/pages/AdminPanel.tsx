@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAdmin } from '@/hooks/useAdmin';
 import { Button } from '@/components/ui/button';
@@ -11,13 +11,14 @@ import CameraManagement from '@/components/admin/CameraManagementEnhanced';
 import PaymentManagement from '@/components/admin/PaymentManagement';
 import AdminDashboard from '@/components/admin/AdminDashboard';
 import AuditLogs from '@/components/admin/AuditLogs';
-import PublicUtilityContactsManagement from '@/components/admin/PublicUtilityContactsManagement'; // New import
+import PublicUtilityContactsManagement from '@/components/admin/PublicUtilityContactsManagement';
 import { supabase } from '@/integrations/supabase/client';
 
 const AdminPanel = () => {
   const { isAdmin, loading } = useAdmin();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [auditLogsRefetchTrigger, setAuditLogsRefetchTrigger] = useState(0); // State to trigger refetch
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -34,6 +35,11 @@ const AdminPanel = () => {
       navigate('/dashboard');
     }
   }, [isAdmin, loading, navigate]);
+
+  // Function to trigger refetch of audit logs
+  const triggerAuditLogsRefetch = () => {
+    setAuditLogsRefetchTrigger(prev => prev + 1);
+  };
 
   if (loading) {
     return (
@@ -74,7 +80,7 @@ const AdminPanel = () => {
 
       <div className="container mx-auto px-4 py-8">
         <Tabs defaultValue="dashboard" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6"> {/* Adjusted grid-cols */}
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="dashboard">
               <Shield className="h-4 w-4 mr-2" />
               Dashboard
@@ -91,7 +97,7 @@ const AdminPanel = () => {
               <DollarSign className="h-4 w-4 mr-2" />
               Pagamentos
             </TabsTrigger>
-            <TabsTrigger value="utilities"> {/* New Tab Trigger */}
+            <TabsTrigger value="utilities">
               <Wrench className="h-4 w-4 mr-2" />
               Utilidades
             </TabsTrigger>
@@ -106,23 +112,23 @@ const AdminPanel = () => {
           </TabsContent>
 
           <TabsContent value="users">
-            <UserManagement />
+            <UserManagement onAuditLogSuccess={triggerAuditLogsRefetch} />
           </TabsContent>
 
           <TabsContent value="cameras">
-            <CameraManagement />
+            <CameraManagement onAuditLogSuccess={triggerAuditLogsRefetch} />
           </TabsContent>
 
           <TabsContent value="payments">
-            <PaymentManagement />
+            <PaymentManagement onAuditLogSuccess={triggerAuditLogsRefetch} />
           </TabsContent>
 
-          <TabsContent value="utilities"> {/* New Tab Content */}
-            <PublicUtilityContactsManagement />
+          <TabsContent value="utilities">
+            <PublicUtilityContactsManagement onAuditLogSuccess={triggerAuditLogsRefetch} />
           </TabsContent>
 
           <TabsContent value="logs">
-            <AuditLogs />
+            <AuditLogs refetchTrigger={auditLogsRefetchTrigger} />
           </TabsContent>
         </Tabs>
       </div>

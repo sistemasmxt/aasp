@@ -5,13 +5,15 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Users, Plus, Trash2, UserPlus, Edit } from 'lucide-react';
+import { Users, Plus, Trash2, UserPlus, Edit, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { logAudit } from '@/lib/auditLogger';
+import { mapErrorToUserMessage } from '@/lib/errorHandler';
+import { z } from 'zod';
 
 interface Group {
   id: string;
@@ -32,7 +34,17 @@ interface GroupMember {
   profiles: { full_name: string } | null;
 }
 
-const GroupManagementEnhanced = () => {
+interface GroupManagementEnhancedProps {
+  onAuditLogSuccess: () => void;
+}
+
+// Zod schema for group validation
+const groupSchema = z.object({
+  name: z.string().min(3, 'Nome do grupo deve ter pelo menos 3 caracteres').max(100, 'Nome do grupo muito longo'),
+  description: z.string().max(500, 'Descrição muito longa').optional().or(z.literal('')),
+});
+
+const GroupManagementEnhanced = ({ onAuditLogSuccess }: GroupManagementEnhancedProps) => {
   const [groups, setGroups] = useState<Group[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -91,7 +103,7 @@ const GroupManagementEnhanced = () => {
     } catch (error: any) {
       toast({
         title: 'Erro ao carregar grupos',
-        description: error.message,
+        description: mapErrorToUserMessage(error),
         variant: 'destructive',
       });
     } finally {
@@ -131,13 +143,16 @@ const GroupManagementEnhanced = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
 
     try {
+      const validatedData = groupSchema.parse(formData);
+
       const { data, error } = await supabase
         .from('groups')
         .insert({
-          name: formData.name,
-          description: formData.description || null,
+          name: validatedData.name,
+          description: validatedData.description || null,
         })
         .select()
         .single();
@@ -148,7 +163,7 @@ const GroupManagementEnhanced = () => {
         action: 'CREATE',
         table_name: 'groups',
         record_id: data.id,
-        details: formData,
+        details: validatedData,
       });
 
       toast({
@@ -159,12 +174,23 @@ const GroupManagementEnhanced = () => {
       setDialogOpen(false);
       setFormData({ name: '', description: '' });
       fetchGroups();
+      onAuditLogSuccess(); // Trigger refetch for audit logs
     } catch (error: any) {
-      toast({
-        title: 'Erro ao criar grupo',
-        description: error.message,
-        variant: 'destructive',
-      });
+      if (error instanceof z.ZodError) {
+        toast({
+          title: 'Erro de validação',
+          description: error.errors[0].message,
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Erro ao criar grupo',
+          description: mapErrorToUserMessage(error),
+          variant: 'destructive',
+        });
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -180,12 +206,15 @@ const GroupManagementEnhanced = () => {
   const handleUpdate = async () => {
     if (!selectedGroup) return;
 
+    setLoading(true);
     try {
+      const validatedData = groupSchema.parse(editFormData);
+
       const { error } = await supabase
         .from('groups')
         .update({
-          name: editFormData.name,
-          description: editFormData.description || null,
+          name: validatedData.name,
+          description: validatedData.description || null,
         })
         .eq('id', selectedGroup.id);
 
@@ -195,7 +224,7 @@ const GroupManagementEnhanced = () => {
         action: 'UPDATE',
         table_name: 'groups',
         record_id: selectedGroup.id,
-        details: editFormData,
+        details: validatedData,
       });
 
       toast({
@@ -205,18 +234,30 @@ const GroupManagementEnhanced = () => {
 
       setEditDialogOpen(false);
       fetchGroups();
+      onAuditLogSuccess(); // Trigger refetch for audit logs
     } catch (error: any) {
-      toast({
-        title: 'Erro ao atualizar grupo',
-        description: error.message,
-        variant: 'destructive',
-      });
+      if (error instanceof z.ZodError) {
+        toast({
+          title: 'Erro de validação',
+          description: error.errors[0].message,
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Erro ao atualizar grupo',
+          description: mapErrorToUserMessage(error),
+          variant: 'destructive',
+        });
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm('Tem certeza que deseja excluir este grupo?')) return;
 
+    setLoading(true);
     try {
       const { error } = await supabase
         .from('groups')
@@ -237,12 +278,15 @@ const GroupManagementEnhanced = () => {
       });
 
       fetchGroups();
+      onAuditLogSuccess(); // Trigger refetch for audit logs
     } catch (error: any) {
       toast({
         title: 'Erro ao excluir grupo',
-        description: error.message,
+        description: mapErrorToUserMessage(error),
         variant: 'destructive',
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -256,6 +300,7 @@ const GroupManagementEnhanced = () => {
     e.preventDefault();
     if (!selectedGroup) return;
 
+    setLoading(true);
     try {
       const { error } = await supabase.from('group_members').insert({
         group_id: selectedGroup.id,
@@ -280,18 +325,22 @@ const GroupManagementEnhanced = () => {
       setMemberForm({ user_id: '' });
       fetchGroupMembers(selectedGroup.id);
       fetchGroups();
+      onAuditLogSuccess(); // Trigger refetch for audit logs
     } catch (error: any) {
       toast({
         title: 'Erro ao adicionar membro',
-        description: error.message,
+        description: mapErrorToUserMessage(error),
         variant: 'destructive',
       });
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleRemoveMember = async (memberId: string) => {
     if (!selectedGroup) return;
 
+    setLoading(true);
     try {
       const { error } = await supabase
         .from('group_members')
@@ -313,17 +362,20 @@ const GroupManagementEnhanced = () => {
 
       fetchGroupMembers(selectedGroup.id);
       fetchGroups();
+      onAuditLogSuccess(); // Trigger refetch for audit logs
     } catch (error: any) {
       toast({
         title: 'Erro ao remover membro',
-        description: error.message,
+        description: mapErrorToUserMessage(error),
         variant: 'destructive',
       });
+    } finally {
+      setLoading(false);
     }
   };
 
   if (loading) {
-    return <div className="text-center py-8">Carregando grupos...</div>;
+    return <div className="text-center py-8"><Loader2 className="h-6 w-6 animate-spin inline-block mr-2" /> Carregando grupos...</div>;
   }
 
   return (
@@ -368,7 +420,9 @@ const GroupManagementEnhanced = () => {
                 <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                   Cancelar
                 </Button>
-                <Button type="submit">Criar</Button>
+                <Button type="submit" disabled={loading}>
+                  {loading ? 'Criando...' : 'Criar'}
+                </Button>
               </div>
             </form>
           </DialogContent>
@@ -401,7 +455,9 @@ const GroupManagementEnhanced = () => {
               <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
                 Cancelar
               </Button>
-              <Button onClick={handleUpdate}>Salvar</Button>
+              <Button onClick={handleUpdate} disabled={loading}>
+                {loading ? 'Salvando...' : 'Salvar'}
+              </Button>
             </div>
           </div>
         </DialogContent>
@@ -426,8 +482,8 @@ const GroupManagementEnhanced = () => {
                   ))}
                 </SelectContent>
               </Select>
-              <Button type="submit">
-                <UserPlus className="h-4 w-4 mr-2" />
+              <Button type="submit" disabled={loading}>
+                {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <UserPlus className="h-4 w-4 mr-2" />}
                 Adicionar
               </Button>
             </form>
@@ -449,6 +505,7 @@ const GroupManagementEnhanced = () => {
                           variant="ghost"
                           size="sm"
                           onClick={() => handleRemoveMember(member.id)}
+                          disabled={loading}
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
@@ -485,13 +542,13 @@ const GroupManagementEnhanced = () => {
                 </TableCell>
                 <TableCell>{new Date(group.created_at).toLocaleDateString('pt-BR')}</TableCell>
                 <TableCell className="text-right space-x-2">
-                  <Button variant="ghost" size="sm" onClick={() => handleEdit(group)}>
+                  <Button variant="ghost" size="sm" onClick={() => handleEdit(group)} disabled={loading}>
                     <Edit className="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={() => handleManageMembers(group)}>
+                  <Button variant="ghost" size="sm" onClick={() => handleManageMembers(group)} disabled={loading}>
                     <Users className="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={() => handleDelete(group.id)}>
+                  <Button variant="ghost" size="sm" onClick={() => handleDelete(group.id)} disabled={loading}>
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
                 </TableCell>

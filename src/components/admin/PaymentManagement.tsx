@@ -19,7 +19,11 @@ import { mapErrorToUserMessage } from '@/lib/errorHandler';
 type Payment = Tables<'payments'> & { user_full_name?: string };
 type Profile = Tables<'profiles'>;
 
-const PaymentManagement = () => {
+interface PaymentManagementProps {
+  onAuditLogSuccess: () => void;
+}
+
+const PaymentManagement = ({ onAuditLogSuccess }: PaymentManagementProps) => {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -192,6 +196,7 @@ const PaymentManagement = () => {
       setEditingPayment(null);
       setFormData({ user_id: '', amount: '', due_date: '', status: 'pending', payment_type: 'recurring', description: '' });
       fetchPayments();
+      onAuditLogSuccess(); // Trigger refetch for audit logs
     } catch (error: any) {
       if (error instanceof z.ZodError) {
         toast({
@@ -232,6 +237,7 @@ const PaymentManagement = () => {
         variant: 'default',
       });
       fetchPayments();
+      onAuditLogSuccess(); // Trigger refetch for audit logs
     } catch (error: any) {
       console.error('Error deleting payment:', error);
       toast({
@@ -293,6 +299,7 @@ const PaymentManagement = () => {
         variant: 'default',
       });
       fetchPayments();
+      onAuditLogSuccess(); // Trigger refetch for audit logs
     } catch (error: any) {
       console.error('Error generating recurring payments:', error.message);
       toast({

@@ -29,6 +29,10 @@ interface PublicUtilityContact {
   updated_at: string;
 }
 
+interface PublicUtilityContactsManagementProps {
+  onAuditLogSuccess: () => void;
+}
+
 // Dynamically get Lucide icons
 const getLucideIcon = (iconName: string) => {
   const IconComponent = (LucideIcons as any)[iconName];
@@ -61,7 +65,7 @@ const COLOR_OPTIONS = [
   { value: 'text-pink-600', label: 'Rosa' },
 ];
 
-const PublicUtilityContactsManagement = () => {
+const PublicUtilityContactsManagement = ({ onAuditLogSuccess }: PublicUtilityContactsManagementProps) => {
   const [contacts, setContacts] = useState<PublicUtilityContact[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -183,6 +187,7 @@ const PublicUtilityContactsManagement = () => {
         color_class: 'text-blue-600',
       });
       fetchContacts();
+      onAuditLogSuccess(); // Trigger refetch for audit logs
     } catch (error: any) {
       if (error instanceof z.ZodError) {
         toast({
@@ -228,6 +233,7 @@ const PublicUtilityContactsManagement = () => {
       });
 
       fetchContacts();
+      onAuditLogSuccess(); // Trigger refetch for audit logs
     } catch (error: any) {
       toast({
         title: 'Erro ao excluir contato',

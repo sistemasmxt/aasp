@@ -27,7 +27,11 @@ interface CameraData {
   is_active: boolean;
 }
 
-const CameraManagementEnhanced = () => {
+interface CameraManagementEnhancedProps {
+  onAuditLogSuccess: () => void;
+}
+
+const CameraManagementEnhanced = ({ onAuditLogSuccess }: CameraManagementEnhancedProps) => {
   const [cameras, setCameras] = useState<CameraData[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -166,6 +170,7 @@ const CameraManagementEnhanced = () => {
         stream_url: '',
       });
       fetchCameras();
+      onAuditLogSuccess(); // Trigger refetch for audit logs
     } catch (error: any) {
       if (error instanceof z.ZodError) {
         toast({
@@ -208,6 +213,7 @@ const CameraManagementEnhanced = () => {
       });
 
       fetchCameras();
+      onAuditLogSuccess(); // Trigger refetch for audit logs
     } catch (error: any) {
       toast({
         title: 'Erro ao atualizar status',
@@ -240,6 +246,7 @@ const CameraManagementEnhanced = () => {
       });
 
       fetchCameras();
+      onAuditLogSuccess(); // Trigger refetch for audit logs
     } catch (error: any) {
       toast({
         title: 'Erro ao excluir câmera',
