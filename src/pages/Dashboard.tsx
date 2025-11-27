@@ -43,8 +43,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import UtilitiesList from "@/components/UtilitiesList";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useUnreadMessageCount } from "@/hooks/useUnreadMessageCount"; // Import the new hook
+import UserReports from "@/components/Reports/UserReports"; // Import the new UserReports component
 
-type DashboardView = 'home' | 'chat' | 'cameras' | 'map' | 'utilities';
+type DashboardView = 'home' | 'chat' | 'cameras' | 'map' | 'utilities' | 'reports'; // Added 'reports'
 
 interface NotificationItem {
   type: 'message' | 'alert';
@@ -343,7 +344,7 @@ const Dashboard = () => {
     }
   };
 
-  const handleSelectView = (view: DashboardView | 'profile' | 'police' | 'ambulance' | 'reports') => {
+  const handleSelectView = (view: DashboardView | 'profile' | 'police' | 'ambulance') => {
     if (view === 'profile') {
       setIsProfileModalOpen(true);
     } else if (view === 'police') {
@@ -355,11 +356,6 @@ const Dashboard = () => {
       toast({
         title: "🚑 Contato com a Ambulância",
         description: "Funcionalidade de contato com a ambulância em desenvolvimento.",
-      });
-    } else if (view === 'reports') {
-      toast({
-        title: "📝 Relatórios e Ajuda",
-        description: "Funcionalidade de relatórios e ajuda em desenvolvimento.",
       });
     } else {
       setActiveView(view as DashboardView);
@@ -581,9 +577,7 @@ const Dashboard = () => {
                 toast({ title: "🚑 Contato com a Ambulância", description: "Chamando a ambulância...", variant: "destructive" });
               }
             }}
-            onHelpAndReports={() => {
-              toast({ title: "📝 Relatórios e Ajuda", description: "Abrindo formulário de relatórios...", variant: "default" });
-            }}
+            onHelpAndReports={() => handleSelectView('reports')} // Updated to navigate to reports
           />
         )}
 
@@ -601,6 +595,10 @@ const Dashboard = () => {
 
         {activeView === 'utilities' && (
           <UtilitiesList />
+        )}
+
+        {activeView === 'reports' && (
+          <UserReports />
         )}
       </div>
     </div>

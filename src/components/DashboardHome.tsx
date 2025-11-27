@@ -98,9 +98,9 @@ const DashboardHome = ({
       id: 'reports',
       iconSrc: '/img/icones/relatorios.png',
       title: 'Relatórios',
-      description: 'Enviar ocorrências e ajuda',
+      description: 'Histórico de pagamentos e status',
       color: 'text-blue-700',
-      action: onHelpAndReports,
+      action: onHelpAndReports, // Now calls the prop directly
     },
     {
       id: 'ambulance',
