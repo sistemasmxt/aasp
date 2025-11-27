@@ -27,6 +27,7 @@ const AdminPanel = () => {
   const [auditLogsRefetchTrigger, setAuditLogsRefetchTrigger] = useState(0);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isBackupLoading, setIsBackupLoading] = useState(false);
+  const [isRepairLoading, setIsRepairLoading] = useState(false); // New state for repair loading
 
   const [currentAdminId, setCurrentAdminId] = useState<string | undefined>(undefined);
   useEffect(() => {
@@ -107,6 +108,60 @@ const AdminPanel = () => {
     }
   };
 
+  const handleAutoRepair = async () => {
+    if (!confirm('Tem certeza que deseja iniciar o auto reparo? Isso irá limpar todos os dados locais do aplicativo (caches, armazenamento local, IndexedDB) e recarregar a página. Você precisará fazer login novamente.')) {
+      return;
+    }
+
+    setIsRepairLoading(true);
+    try {
+      // 1. Clear all caches (Service Worker caches and browser caches)
+      if ('caches' in window) {
+        const cacheNames = await caches.keys();
+        await Promise.all(cacheNames.map(name => caches.delete(name)));
+        console.log('All browser caches cleared.');
+      }
+
+      // 2. Clear IndexedDB
+      if ('indexedDB' in window) {
+        const dbNames = await indexedDB.databases();
+        await Promise.all(dbNames.map(db => indexedDB.deleteDatabase(db.name!)));
+        console.log('All IndexedDB databases cleared.');
+      }
+
+      // 3. Clear localStorage and sessionStorage
+      localStorage.clear();
+      sessionStorage.clear();
+      console.log('Local and session storage cleared.');
+
+      // 4. Unregister Service Worker
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.map(registration => registration.unregister()));
+        console.log('All service workers unregistered.');
+      }
+
+      toast({
+        title: "Reparo iniciado!",
+        description: "O aplicativo será recarregado com um estado limpo.",
+        variant: "default",
+      });
+
+      // Reload the page to apply changes
+      window.location.reload();
+
+    } catch (error: any) {
+      console.error('Error during auto-repair:', error);
+      toast({
+        title: "Erro no auto reparo",
+        description: error.message || "Não foi possível completar o auto reparo. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRepairLoading(false);
+    }
+  };
+
   if (adminLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -129,6 +184,7 @@ const AdminPanel = () => {
   const CameraIcon = getLucideIconByName('Camera');
   const WrenchIcon = getLucideIconByName('Wrench');
   const ToolIcon = getLucideIconByName('Tool');
+  const RefreshCcwIcon = getLucideIconByName('RefreshCcw'); // New icon for auto-repair
 
 
   return (
@@ -314,6 +370,31 @@ const AdminPanel = () => {
                       <>
                         <DatabaseBackup className="h-4 w-4 mr-2" />
                         Iniciar Backup
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                {/* New Auto Repair Functionality */}
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div>
+                    <h3 className="font-semibold text-lg">Auto Reparo do Aplicativo</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Limpa todos os caches do navegador, armazenamento local e Service Workers para resolver problemas de arquivos corrompidos ou inconsistências no aplicativo.
+                      <br />
+                      **Atenção:** Isso irá desconectar o usuário atual e recarregar a página.
+                    </p>
+                  </div>
+                  <Button onClick={handleAutoRepair} disabled={isRepairLoading} variant="destructive">
+                    {isRepairLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Reparando...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCcwIcon className="h-4 w-4 mr-2" />
+                        Iniciar Auto Reparo
                       </>
                     )}
                   </Button>
