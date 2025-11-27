@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } => '@/components/ui/badge';
+import { Badge } from '@/components/ui/badge';
 import { FileText, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
