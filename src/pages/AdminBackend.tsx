@@ -23,7 +23,10 @@ import {
   TrendingUp,
   Server,
   Key,
-  Lock
+  Lock,
+  PawPrint, // New icon for SOS Pet
+  MessageSquareOff, // New icon for Anonymous Reports
+  CloudLightning, // New icon for Emergency Situation
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import UserManagement from '@/components/admin/UserManagementEnhanced';
@@ -31,6 +34,10 @@ import CameraManagement from '@/components/admin/CameraManagementEnhanced';
 import PaymentManagement from '@/components/admin/PaymentManagement';
 import AdminDashboard from '@/components/admin/AdminDashboard';
 import AuditLogs from '@/components/admin/AuditLogs';
+import PublicUtilityContactsManagement from '@/components/admin/PublicUtilityContactsManagement'; // Import PublicUtilityContactsManagement
+import SosPetModule from '@/components/SosPetModule'; // Import new module
+import AnonymousReportsModule from '@/components/AnonymousReportsModule'; // Import new module
+import EmergencySituationModule from '@/components/EmergencySituationModule'; // Import new module
 
 interface SystemStats {
   totalUsers: number;
@@ -52,6 +59,7 @@ const AdminBackend = () => {
   const navigate = useNavigate();
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
+  const [auditLogsRefetchTrigger, setAuditLogsRefetchTrigger] = useState(0); // State to trigger refetch
 
   useEffect(() => {
     if (!loading && !isAdmin) {
@@ -70,59 +78,37 @@ const AdminBackend = () => {
       setLoadingStats(true);
 
       // Get user stats
-      const { count: totalUsers } = await supabase
-        .from('profiles')
-        .select('*', { count: 'exact', head: true });
-
-      const { count: approvedUsers } = await supabase
-        .from('profiles')
-        .select('*', { count: 'exact', head: true })
-        .eq('is_approved', true);
+      const [{ count: totalUsers }, { count: approvedUsers }, { count: activeUsers }] = await Promise.all([
+        supabase.from('profiles').select('*', { count: 'exact', head: true }),
+        supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('is_approved', true),
+        (async () => {
+          const thirtyDaysAgo = new Date();
+          thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+          const { count } = await supabase
+            .from('profiles')
+            .select('*', { count: 'exact', head: true })
+            .gte('updated_at', thirtyDaysAgo.toISOString()); // Using updated_at as a proxy for last_login
+          return count;
+        })(),
+      ]);
 
       // Get camera stats
-      const { count: totalCameras } = await supabase
-        .from('cameras')
-        .select('*', { count: 'exact', head: true });
-
-      const { count: activeCameras } = await supabase
-        .from('cameras')
-        .select('*', { count: 'exact', head: true })
-        .eq('is_active', true);
+      const [{ count: totalCameras }, { count: activeCameras }] = await Promise.all([
+        supabase.from('cameras').select('*', { count: 'exact', head: true }),
+        supabase.from('cameras').select('*', { count: 'exact', head: true }).eq('is_active', true),
+      ]);
 
       // Get payment stats
-      const { count: totalPayments } = await supabase
-        .from('payments')
-        .select('*', { count: 'exact', head: true });
-
-      const { count: pendingPayments } = await supabase
-        .from('payments')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'pending');
-
-      const { count: initialPaymentsPending } = await supabase
-        .from('payments')
-        .select('*', { count: 'exact', head: true })
-        .eq('payment_type', 'initial')
-        .eq('status', 'pending');
-
-      const { count: recurringPaymentsPending } = await supabase
-        .from('payments')
-        .select('*', { count: 'exact', head: true })
-        .eq('payment_type', 'recurring')
-        .eq('status', 'pending');
-
-      // Get active users (users who logged in within last 30 days)
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-      const { count: activeUsers } = await supabase
-        .from('profiles')
-        .select('*', { count: 'exact', head: true })
-        .gte('last_login', thirtyDaysAgo.toISOString());
+      const [{ count: totalPayments }, { count: pendingPayments }, { count: initialPaymentsPending }, { count: recurringPaymentsPending }] = await Promise.all([
+        supabase.from('payments').select('*', { count: 'exact', head: true }),
+        supabase.from('payments').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+        supabase.from('payments').select('*', { count: 'exact', head: true }).eq('payment_type', 'initial').eq('status', 'pending'),
+        supabase.from('payments').select('*', { count: 'exact', head: true }).eq('payment_type', 'recurring').eq('status', 'pending'),
+      ]);
 
       // Mock system health and other stats
-      const systemHealth = activeCameras && activeCameras > totalCameras * 0.8 ? 'healthy' :
-                          activeCameras && activeCameras > totalCameras * 0.5 ? 'warning' : 'critical';
+      const systemHealth = (activeCameras || 0) > (totalCameras || 0) * 0.8 ? 'healthy' :
+                          (activeCameras || 0) > (totalCameras || 0) * 0.5 ? 'warning' : 'critical';
 
       setStats({
         totalUsers: totalUsers || 0,
@@ -143,6 +129,10 @@ const AdminBackend = () => {
     } finally {
       setLoadingStats(false);
     }
+  };
+
+  const triggerAuditLogsRefetch = () => {
+    setAuditLogsRefetchTrigger(prev => prev + 1);
   };
 
   if (loading) {
@@ -379,7 +369,7 @@ const AdminBackend = () => {
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="dashboard" className="space-y-6">
-              <TabsList className="grid w-full grid-cols-5 bg-slate-800">
+              <TabsList className="grid w-full grid-cols-8"> {/* Adjusted grid-cols to 8 */}
                 <TabsTrigger value="dashboard" className="data-[state=active]:bg-slate-700">
                   <BarChart3 className="h-4 w-4 mr-2" />
                   Dashboard
@@ -396,6 +386,22 @@ const AdminBackend = () => {
                   <DollarSign className="h-4 w-4 mr-2" />
                   Pagamentos
                 </TabsTrigger>
+                <TabsTrigger value="utilities" className="data-[state=active]:bg-slate-700">
+                  <Wrench className="h-4 w-4 mr-2" />
+                  Utilidades
+                </TabsTrigger>
+                <TabsTrigger value="sos-pet" className="data-[state=active]:bg-slate-700"> {/* New tab */}
+                  <PawPrint className="h-4 w-4 mr-2" />
+                  SOS Pet
+                </TabsTrigger>
+                <TabsTrigger value="anonymous-reports" className="data-[state=active]:bg-slate-700"> {/* New tab */}
+                  <MessageSquareOff className="h-4 w-4 mr-2" />
+                  Denúncias
+                </TabsTrigger>
+                <TabsTrigger value="emergency-situation" className="data-[state=active]:bg-slate-700"> {/* New tab */}
+                  <CloudLightning className="h-4 w-4 mr-2" />
+                  Emergência
+                </TabsTrigger>
                 <TabsTrigger value="logs" className="data-[state=active]:bg-slate-700">
                   <FileText className="h-4 w-4 mr-2" />
                   Auditoria
@@ -407,19 +413,35 @@ const AdminBackend = () => {
               </TabsContent>
 
               <TabsContent value="users" className="space-y-4">
-                <UserManagement />
+                <UserManagement onAuditLogSuccess={triggerAuditLogsRefetch} />
               </TabsContent>
 
               <TabsContent value="cameras" className="space-y-4">
-                <CameraManagement />
+                <CameraManagement onAuditLogSuccess={triggerAuditLogsRefetch} />
               </TabsContent>
 
               <TabsContent value="payments" className="space-y-4">
-                <PaymentManagement />
+                <PaymentManagement onAuditLogSuccess={triggerAuditLogsRefetch} />
+              </TabsContent>
+
+              <TabsContent value="utilities" className="space-y-4">
+                <PublicUtilityContactsManagement onAuditLogSuccess={triggerAuditLogsRefetch} />
+              </TabsContent>
+
+              <TabsContent value="sos-pet" className="space-y-4"> {/* New content */}
+                <SosPetModule />
+              </TabsContent>
+
+              <TabsContent value="anonymous-reports" className="space-y-4"> {/* New content */}
+                <AnonymousReportsModule />
+              </TabsContent>
+
+              <TabsContent value="emergency-situation" className="space-y-4"> {/* New content */}
+                <EmergencySituationModule />
               </TabsContent>
 
               <TabsContent value="logs" className="space-y-4">
-                <AuditLogs />
+                <AuditLogs refetchTrigger={auditLogsRefetchTrigger} />
               </TabsContent>
             </Tabs>
           </CardContent>
