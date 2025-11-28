@@ -531,21 +531,21 @@ const Dashboard = () => {
                 </SheetHeader>
                 {/* User Profile Info in Mobile Menu */}
                 {profile && user && (
-                  <div className="flex items-center p-4 border-b border-border mb-4"> {/* Changed to flex-row */}
-                    <Avatar className="h-20 w-20 mr-4"> {/* Added mr-4 for spacing */}
+                  <div className="flex items-center p-4 border-b border-border mb-4">
+                    <Avatar className="h-16 w-16 mr-3"> {/* Diminuído o tamanho do avatar e margem */}
                       <AvatarImage src={profile.avatar_url || ""} />
-                      <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
+                      <AvatarFallback className="bg-primary text-primary-foreground text-xl"> {/* Ajustado o tamanho da fonte do fallback */}
                         {profile.full_name?.charAt(0) || "U"}
                       </AvatarFallback>
                     </Avatar>
-                    <div className="flex flex-col items-start"> {/* New container for name, email, badge */}
-                      <p className="font-semibold text-lg text-foreground">
+                    <div className="flex flex-col items-start">
+                      <p className="font-semibold text-base text-foreground"> {/* Diminuído o tamanho da fonte do nome */}
                         {profile.full_name || "Usuário"}
                       </p>
-                      <p className="text-sm text-muted-foreground mb-2">{user.email}</p> {/* Added mb-2 for spacing */}
+                      <p className="text-xs text-muted-foreground mb-1">{user.email}</p> {/* Diminuído a fonte do email e margem */}
                       {profile.is_approved && (
-                        <Badge variant="default" className="bg-green-500 hover:bg-green-500 px-3 py-1 text-sm flex items-center gap-1"> {/* Adjusted padding and text size for badge */}
-                          <BadgeCheck className="h-4 w-4" /> Verificado
+                        <Badge variant="default" className="bg-green-500 hover:bg-green-500 px-2 py-0.5 text-xs flex items-center gap-1"> {/* Ajustado padding e tamanho da fonte do badge */}
+                          <BadgeCheck className="h-3 w-3" /> Verificado
                         </Badge>
                       )}
                     </div>
