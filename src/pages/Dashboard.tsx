@@ -529,6 +529,28 @@ const Dashboard = () => {
                     Menu
                   </SheetTitle>
                 </SheetHeader>
+                {/* User Profile Info in Mobile Menu */}
+                {profile && user && (
+                  <div className="flex flex-col items-center p-4 border-b border-border mb-4">
+                    <Avatar className="h-20 w-20 mb-3">
+                      <AvatarImage src={profile.avatar_url || ""} />
+                      <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
+                        {profile.full_name?.charAt(0) || "U"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex items-center gap-1 mb-1">
+                      <p className="font-semibold text-lg text-foreground">
+                        {profile.full_name || "Usuário"}
+                      </p>
+                      {profile.is_approved && (
+                        <Badge variant="default" className="bg-green-500 hover:bg-green-500 px-2 py-0.5 text-xs">
+                          <BadgeCheck className="h-3 w-3 mr-1" /> Verificado
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-sm text-muted-foreground">{user.email}</p>
+                  </div>
+                )}
                 <ScrollArea className="flex-1">
                   <div className="flex flex-col gap-4 mt-8">
                     <Button variant="ghost" className="justify-start" onClick={() => handleSelectView('home')}>
