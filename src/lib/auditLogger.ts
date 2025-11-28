@@ -2,7 +2,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Tables } from '@/integrations/supabase/types'; // Import Tables type
 
 export type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE';
-export type AuditTable = 'users' | 'cameras' | 'payments' | 'user_roles' | 'public_utility_contacts' | 'profiles' | 'groups' | 'group_members' | 'edge_functions' | 'sos_pets' | 'anonymous_reports'; // Added new tables
+export type AuditTable = 'users' | 'cameras' | 'payments' | 'user_roles' | 'public_utility_contacts' | 'profiles' | 'groups' | 'group_members' | 'edge_functions' | 'sos_pets' | 'anonymous_reports' | 'emergency_alerts'; // Added new tables
 
 interface LogAuditParams {
   action: AuditAction;
