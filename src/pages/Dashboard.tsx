@@ -13,7 +13,7 @@ import {
   Settings,
   Home,
   DollarSign,
-  CheckCircle,
+  CheckCircle, // Import CheckCircle for the verified badge
   ChevronLeft,
   ChevronRight,
   Clock,
@@ -24,6 +24,7 @@ import {
   Ambulance,
   Wrench,
   Mail,
+  BadgeCheck, // Import BadgeCheck for the verified badge
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -73,6 +74,7 @@ const Dashboard = () => {
     avatar_url: string | null;
     created_at: string;
     updated_at: string;
+    is_approved: boolean; // Ensure is_approved is part of the profile type
   } | null>(null);
   const [emergencyAlerts, setEmergencyAlerts] = useState<{
     id: string;
@@ -496,12 +498,17 @@ const Dashboard = () => {
                     {profile?.full_name?.charAt(0) || "U"}
                   </AvatarFallback>
                 </Avatar>
-                <div className="text-left">
+                <div className="text-left flex items-center gap-1"> {/* Added flex and gap for badge */}
                   <p className="text-sm font-medium text-foreground">
                     {profile?.full_name || "Usuário"}
                   </p>
-                  <p className="text-xs text-muted-foreground">{user?.email}</p>
+                  {profile?.is_approved && ( // Conditionally render badge
+                    <Badge variant="default" className="bg-green-500 hover:bg-green-500 px-2 py-0.5 text-xs">
+                      <BadgeCheck className="h-3 w-3 mr-1" /> Verificado
+                    </Badge>
+                  )}
                 </div>
+                <p className="text-xs text-muted-foreground">{user?.email}</p>
               </div>
               <Button variant="ghost" size="icon" onClick={handleLogout}>
                 <LogOut className="h-5 w-5" />
