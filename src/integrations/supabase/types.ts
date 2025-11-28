@@ -82,6 +82,56 @@ export type Database = {
           },
         ]
       }
+      anonymous_reports: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          image_url: string | null
+          latitude: number | null
+          location_description: string | null
+          longitude: number | null
+          report_type: string
+          reporter_user_id: string | null
+          status: Database["public"]["Enums"]["report_status_enum"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          id?: string
+          image_url?: string | null
+          latitude?: number | null
+          location_description?: string | null
+          longitude?: number | null
+          report_type: string
+          reporter_user_id?: string | null
+          status?: Database["public"]["Enums"]["report_status_enum"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          image_url?: string | null
+          latitude?: number | null
+          location_description?: string | null
+          longitude?: number | null
+          report_type?: string
+          reporter_user_id?: string | null
+          status?: Database["public"]["Enums"]["report_status_enum"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "anonymous_reports_reporter_user_id_fkey"
+            columns: ["reporter_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attachments: {
         Row: {
           created_at: string
@@ -418,6 +468,68 @@ export type Database = {
         }
         Relationships: []
       }
+      sos_pets: {
+        Row: {
+          breed: string | null
+          contact_email: string | null
+          contact_phone: string
+          created_at: string
+          description: string | null
+          id: string
+          image_url: string | null
+          last_seen_location: string | null
+          latitude: number | null
+          longitude: number | null
+          pet_name: string
+          species: string
+          status: Database["public"]["Enums"]["pet_status_enum"]
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          breed?: string | null
+          contact_email?: string | null
+          contact_phone: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          last_seen_location?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          pet_name: string
+          species: string
+          status?: Database["public"]["Enums"]["pet_status_enum"]
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          breed?: string | null
+          contact_email?: string | null
+          contact_phone?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          last_seen_location?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          pet_name?: string
+          species?: string
+          status?: Database["public"]["Enums"]["pet_status_enum"]
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sos_pets_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string | null
@@ -488,6 +600,8 @@ export type Database = {
       app_role: "admin" | "user"
       initial_payment_status_enum: "unpaid" | "pending" | "paid"
       payment_type_enum: "initial" | "recurring"
+      pet_status_enum: "missing" | "found" | "resolved"
+      report_status_enum: "pending" | "investigating" | "resolved"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -618,6 +732,8 @@ export const Constants = {
       app_role: ["admin", "user"],
       initial_payment_status_enum: ["unpaid", "pending", "paid"],
       payment_type_enum: ["initial", "recurring"],
+      pet_status_enum: ["missing", "found", "resolved"],
+      report_status_enum: ["pending", "investigating", "resolved"],
     },
   },
 } as const

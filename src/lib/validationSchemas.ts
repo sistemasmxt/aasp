@@ -51,7 +51,7 @@ export const messageSchema = z.object({
   message_type: z.enum(['text', 'image', 'video', 'audio', 'file']),
 });
 
-// Public Utility Contact validation schema (New)
+// Public Utility Contact validation schema
 export const publicUtilityContactSchema = z.object({
   name: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres').max(100, 'Nome muito longo'),
   phone: z.string().regex(/^\+?[\d\s()-]{10,20}$/, 'Telefone inválido'),
@@ -59,4 +59,30 @@ export const publicUtilityContactSchema = z.object({
   description: z.string().max(500, 'Descrição muito longa').optional().or(z.literal('')),
   icon_name: z.string().min(1, 'Nome do ícone obrigatório'),
   color_class: z.string().min(1, 'Classe de cor obrigatória'),
+});
+
+// SOS Pet validation schema (New)
+export const sosPetSchema = z.object({
+  pet_name: z.string().min(2, 'Nome do pet deve ter pelo menos 2 caracteres').max(100, 'Nome do pet muito longo'),
+  species: z.string().min(2, 'Espécie deve ter pelo menos 2 caracteres').max(50, 'Espécie muito longa'),
+  breed: z.string().max(100, 'Raça muito longa').optional().or(z.literal('')),
+  description: z.string().max(1000, 'Descrição muito longa').optional().or(z.literal('')),
+  last_seen_location: z.string().max(255, 'Localização muito longa').optional().or(z.literal('')),
+  latitude: z.number().min(-90, 'Latitude inválida').max(90, 'Latitude inválida').optional().or(z.literal(null)),
+  longitude: z.number().min(-180, 'Longitude inválida').max(180, 'Longitude inválida').optional().or(z.literal(null)),
+  contact_phone: z.string().regex(/^\+?[\d\s()-]{10,20}$/, 'Telefone de contato inválido'),
+  contact_email: z.string().email('E-mail de contato inválido').max(255, 'E-mail muito longo').optional().or(z.literal('')),
+  image_url: z.string().url('URL da imagem inválida').optional().or(z.literal('')),
+  status: z.enum(Constants.public.Enums.pet_status_enum).optional(),
+});
+
+// Anonymous Report validation schema (New)
+export const anonymousReportSchema = z.object({
+  report_type: z.string().min(3, 'Tipo de denúncia obrigatório').max(100, 'Tipo de denúncia muito longo'),
+  location_description: z.string().max(255, 'Descrição da localização muito longa').optional().or(z.literal('')),
+  latitude: z.number().min(-90, 'Latitude inválida').max(90, 'Latitude inválida').optional().or(z.literal(null)),
+  longitude: z.number().min(-180, 'Longitude inválida').max(180, 'Longitude inválida').optional().or(z.literal(null)),
+  description: z.string().min(10, 'Descrição da denúncia deve ter pelo menos 10 caracteres').max(1000, 'Descrição da denúncia muito longa'),
+  image_url: z.string().url('URL da imagem inválida').optional().or(z.literal('')),
+  status: z.enum(Constants.public.Enums.report_status_enum).optional(),
 });

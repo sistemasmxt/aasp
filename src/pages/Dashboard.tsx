@@ -25,6 +25,9 @@ import {
   Wrench,
   Mail,
   BadgeCheck, // Import BadgeCheck for the verified badge
+  PawPrint, // New icon for SOS Pet
+  MessageSquareOff, // New icon for Anonymous Reports
+  CloudLightning, // New icon for Emergency Situation
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -46,8 +49,11 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useUnreadMessageCount } from "@/hooks/useUnreadMessageCount"; // Import the new hook
 import UserReports from "@/components/Reports/UserReports"; // Import the new UserReports component
 import { useIsMobile } from "@/hooks/use-mobile"; // Import useIsMobile hook
+import SosPetModule from "@/components/SosPetModule"; // New module
+import AnonymousReportsModule from "@/components/AnonymousReportsModule"; // New module
+import EmergencySituationModule from "@/components/EmergencySituationModule"; // New module
 
-type DashboardView = 'home' | 'chat' | 'cameras' | 'map' | 'utilities' | 'reports';
+type DashboardView = 'home' | 'chat' | 'cameras' | 'map' | 'utilities' | 'reports' | 'sos-pet' | 'anonymous-reports' | 'emergency-situation';
 
 interface NotificationItem {
   type: 'message' | 'alert';
@@ -532,19 +538,19 @@ const Dashboard = () => {
                 {/* User Profile Info in Mobile Menu */}
                 {profile && user && (
                   <div className="flex items-center p-4 border-b border-border mb-4">
-                    <Avatar className="h-16 w-16 mr-3"> {/* Diminuído o tamanho do avatar e margem */}
+                    <Avatar className="h-16 w-16 mr-3">
                       <AvatarImage src={profile.avatar_url || ""} />
-                      <AvatarFallback className="bg-primary text-primary-foreground text-xl"> {/* Ajustado o tamanho da fonte do fallback */}
+                      <AvatarFallback className="bg-primary text-primary-foreground text-xl">
                         {profile.full_name?.charAt(0) || "U"}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex flex-col items-start">
-                      <p className="font-semibold text-base text-foreground"> {/* Diminuído o tamanho da fonte do nome */}
+                      <p className="font-semibold text-base text-foreground">
                         {profile.full_name || "Usuário"}
                       </p>
-                      <p className="text-xs text-muted-foreground mb-1">{user.email}</p> {/* Diminuído a fonte do email e margem */}
+                      <p className="text-xs text-muted-foreground mb-1">{user.email}</p>
                       {profile.is_approved && (
-                        <Badge variant="default" className="bg-green-500 hover:bg-green-500 px-2 py-0.5 text-xs flex items-center gap-1"> {/* Ajustado padding e tamanho da fonte do badge */}
+                        <Badge variant="default" className="bg-green-500 hover:bg-green-500 px-2 py-0.5 text-xs flex items-center gap-1">
                           <BadgeCheck className="h-3 w-3" /> Verificado
                         </Badge>
                       )}
@@ -580,6 +586,18 @@ const Dashboard = () => {
                     <Button variant="ghost" className="justify-start" onClick={() => handleSelectView('reports')}>
                       <ClipboardList className="h-5 w-5 mr-2" />
                       Relatórios
+                    </Button>
+                    <Button variant="ghost" className="justify-start" onClick={() => handleSelectView('sos-pet')}>
+                      <PawPrint className="h-5 w-5 mr-2" />
+                      SOS Pet
+                    </Button>
+                    <Button variant="ghost" className="justify-start" onClick={() => handleSelectView('anonymous-reports')}>
+                      <MessageSquareOff className="h-5 w-5 mr-2" />
+                      Denúncias Anônimas
+                    </Button>
+                    <Button variant="ghost" className="justify-start" onClick={() => handleSelectView('emergency-situation')}>
+                      <CloudLightning className="h-5 w-5 mr-2" />
+                      Situação de Emergência
                     </Button>
                     <Button variant="ghost" className="justify-start" onClick={() => handleSelectView('police')}>
                       <ShieldAlert className="h-5 w-5 mr-2" />
@@ -636,6 +654,18 @@ const Dashboard = () => {
 
         {activeView === 'reports' && (
           <UserReports />
+        )}
+
+        {activeView === 'sos-pet' && (
+          <SosPetModule />
+        )}
+
+        {activeView === 'anonymous-reports' && (
+          <AnonymousReportsModule />
+        )}
+
+        {activeView === 'emergency-situation' && (
+          <EmergencySituationModule />
         )}
       </div>
     </div>

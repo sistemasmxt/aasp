@@ -6,6 +6,9 @@ import { Button } from '@/components/ui/button';
 import {
   Bell,
   ArrowLeft,
+  PawPrint, // Icon for SOS Pet
+  MessageSquareOff, // Icon for Anonymous Reports
+  CloudLightning, // Icon for Emergency Situation
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -22,7 +25,7 @@ const CustomIcon = ({ src, icon: Icon, className }: { src?: string; icon?: React
 
 interface DashboardHomeProps {
   onSOSAlert: () => void;
-  onSelectView: (view: 'home' | 'chat' | 'cameras' | 'map' | 'profile' | 'police' | 'ambulance' | 'reports' | 'utilities') => void;
+  onSelectView: (view: 'home' | 'chat' | 'cameras' | 'map' | 'profile' | 'police' | 'ambulance' | 'reports' | 'utilities' | 'sos-pet' | 'anonymous-reports' | 'emergency-situation') => void;
   onOpenProfileEdit: () => void;
   onEmergencyContact: (type: 'police' | 'ambulance') => void;
   onHelpAndReports: () => void;
@@ -45,7 +48,7 @@ const DashboardHome = ({
       action: () => onSelectView('cameras'),
     },
     {
-      id: 'utilities', // New card for Utilities
+      id: 'utilities',
       iconSrc: '/img/icones/utilidades.png',
       title: 'Utilidades',
       description: 'Contatos de emergência',
@@ -100,7 +103,7 @@ const DashboardHome = ({
       title: 'Relatórios',
       description: 'Histórico de pagamentos e status',
       color: 'text-blue-700',
-      action: onHelpAndReports, // Now calls the prop directly
+      action: onHelpAndReports,
     },
     {
       id: 'ambulance',
@@ -109,6 +112,30 @@ const DashboardHome = ({
       description: 'Contato de emergência',
       color: 'text-green-600',
       action: () => onEmergencyContact('ambulance'),
+    },
+    { // New: SOS Pet
+      id: 'sos-pet',
+      icon: PawPrint,
+      title: 'SOS Pet',
+      description: 'Ajuda para pets perdidos/encontrados',
+      color: 'text-orange-500',
+      action: () => onSelectView('sos-pet'),
+    },
+    { // New: Denúncias Anônimas
+      id: 'anonymous-reports',
+      icon: MessageSquareOff,
+      title: 'Denúncias Anônimas',
+      description: 'Reporte incidentes confidencialmente',
+      color: 'text-red-500',
+      action: () => onSelectView('anonymous-reports'),
+    },
+    { // New: Situação de Emergência
+      id: 'emergency-situation',
+      icon: CloudLightning,
+      title: 'Situação de Emergência',
+      description: 'Alertas sobre fenômenos naturais',
+      color: 'text-yellow-400',
+      action: () => onSelectView('emergency-situation'),
     },
   ];
 
