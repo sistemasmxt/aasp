@@ -4,11 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Check, CheckCheck, ArrowLeft } from "lucide-react";
+import { Send, Check, CheckCheck, ArrowLeft, BadgeCheck } from "lucide-react"; // Import BadgeCheck
 import { useToast } from "@/hooks/use-toast";
 import { mapErrorToUserMessage } from "@/lib/errorHandler";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile"; // Import useIsMobile
+import { Badge } from "@/components/ui/badge"; // Import Badge
 
 interface Message {
   id: string;
@@ -29,6 +30,7 @@ interface ChatMessagesProps {
     id: string;
     full_name: string | null;
     avatar_url: string | null;
+    is_approved: boolean; // Adicionado is_approved
   } | null;
   onBack?: () => void; // Optional prop for back button on mobile
 }
@@ -317,10 +319,15 @@ export const ChatMessages = ({ currentUserId, recipientId, recipientProfile, onB
               {recipientProfile?.full_name?.charAt(0) || "U"}
             </AvatarFallback>
           </Avatar>
-          <div>
+          <div className="flex items-center gap-1"> {/* Adicionado flex e gap */}
             <p className="font-medium text-foreground">
               {recipientProfile?.full_name || "Usuário"}
             </p>
+            {recipientProfile?.is_approved && ( // Renderizar selo se aprovado
+              <Badge variant="default" className="bg-green-500 hover:bg-green-500 px-2 py-0.5 text-xs">
+                <BadgeCheck className="h-3 w-3" />
+              </Badge>
+            )}
           </div>
         </div>
       )}

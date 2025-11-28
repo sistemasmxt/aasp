@@ -4,6 +4,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge"; // Import Badge
+import { BadgeCheck } from "lucide-react"; // Import BadgeCheck icon
 
 interface UserListProps {
   currentUserId: string;
@@ -16,6 +18,7 @@ export const UserList = ({ currentUserId, selectedUserId, onSelectUser }: UserLi
     id: string;
     full_name: string;
     avatar_url: string | null;
+    is_approved: boolean; // Adicionado is_approved
   }[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const { toast } = useToast();
@@ -29,7 +32,7 @@ export const UserList = ({ currentUserId, selectedUserId, onSelectUser }: UserLi
         // Buscar todos os perfis (exceto o do usuário atual)
         const { data: allProfiles, error: profilesError } = await supabase
           .from("profiles")
-          .select("id, full_name, avatar_url")
+          .select("id, full_name, avatar_url, is_approved") // Buscar is_approved
           .neq("id", currentUserId)
           .order("full_name");
 
@@ -96,10 +99,15 @@ export const UserList = ({ currentUserId, selectedUserId, onSelectUser }: UserLi
                   {profile.full_name?.charAt(0) || "U"}
                 </AvatarFallback>
               </Avatar>
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0 flex items-center gap-1"> {/* Adicionado flex e gap */}
                 <p className="font-medium truncate">
                   {profile.full_name || "Usuário"}
                 </p>
+                {profile.is_approved && ( // Renderizar selo se aprovado
+                  <Badge variant="default" className="bg-green-500 hover:bg-green-500 px-2 py-0.5 text-xs">
+                    <BadgeCheck className="h-3 w-3" />
+                  </Badge>
+                )}
               </div>
             </button>
           ))

@@ -16,6 +16,7 @@ interface UserProfile {
   id: string;
   full_name: string | null;
   avatar_url: string | null;
+  is_approved: boolean; // Adicionado is_approved
   is_admin?: boolean;
 }
 
@@ -40,7 +41,7 @@ export const ChatInterface = () => {
           // Primeiro carrega o perfil do usuário
           const { data: profileData, error: profileError } = await supabase
             .from("profiles")
-            .select("id, full_name, avatar_url")
+            .select("id, full_name, avatar_url, is_approved") // Buscar is_approved
             .eq("id", selectedUserId)
             .single();
 
