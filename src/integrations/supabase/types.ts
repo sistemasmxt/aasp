@@ -551,6 +551,48 @@ export type Database = {
         }
         Relationships: []
       }
+      weather_alerts: {
+        Row: {
+          alert_type: Database["public"]["Enums"]["weather_alert_type_enum"]
+          created_at: string
+          end_time: string | null
+          id: string
+          is_active: boolean | null
+          latitude: number
+          location_name: string
+          longitude: number
+          message: string
+          severity: Database["public"]["Enums"]["weather_alert_severity_enum"]
+          start_time: string
+        }
+        Insert: {
+          alert_type: Database["public"]["Enums"]["weather_alert_type_enum"]
+          created_at?: string
+          end_time?: string | null
+          id?: string
+          is_active?: boolean | null
+          latitude: number
+          location_name: string
+          longitude: number
+          message: string
+          severity: Database["public"]["Enums"]["weather_alert_severity_enum"]
+          start_time?: string
+        }
+        Update: {
+          alert_type?: Database["public"]["Enums"]["weather_alert_type_enum"]
+          created_at?: string
+          end_time?: string | null
+          id?: string
+          is_active?: boolean | null
+          latitude?: number
+          location_name?: string
+          longitude?: number
+          message?: string
+          severity?: Database["public"]["Enums"]["weather_alert_severity_enum"]
+          start_time?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       public_profiles: {
@@ -587,11 +629,15 @@ export type Database = {
         Args: { _group_id: string; _user_id: string }
         Returns: boolean
       }
-      "process-payment-notification": { // Renamed Edge Function
+      "process-payment-notification": {
         Args: Record<PropertyKey, never>;
         Returns: Json;
       }
       "trigger-full-backup": {
+        Args: Record<PropertyKey, never>;
+        Returns: Json;
+      }
+      "fetch-weather-alerts": {
         Args: Record<PropertyKey, never>;
         Returns: Json;
       }
@@ -602,6 +648,13 @@ export type Database = {
       payment_type_enum: "initial" | "recurring"
       pet_status_enum: "missing" | "found" | "resolved"
       report_status_enum: "pending" | "investigating" | "resolved"
+      weather_alert_type_enum:
+        | "strong_wind"
+        | "heavy_rain"
+        | "extreme_temperature"
+        | "storm"
+        | "other"
+      weather_alert_severity_enum: "low" | "medium" | "high" | "critical"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -734,6 +787,8 @@ export const Constants = {
       payment_type_enum: ["initial", "recurring"],
       pet_status_enum: ["missing", "found", "resolved"],
       report_status_enum: ["pending", "investigating", "resolved"],
+      weather_alert_type_enum: ["strong_wind", "heavy_rain", "extreme_temperature", "storm", "other"],
+      weather_alert_severity_enum: ["low", "medium", "high", "critical"],
     },
   },
 } as const

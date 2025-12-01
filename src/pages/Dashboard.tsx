@@ -28,6 +28,7 @@ import {
   PawPrint, // New icon for SOS Pet
   MessageSquareOff, // New icon for Anonymous Reports
   CloudLightning, // New icon for Emergency Situation
+  Cloud, // New icon for Weather
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -52,17 +53,20 @@ import { useIsMobile } from "@/hooks/use-mobile"; // Import useIsMobile hook
 import SosPetModule from "@/components/SosPetModule"; // New module
 import AnonymousReportsModule from "@/components/AnonymousReportsModule"; // New module
 import EmergencySituationModule from "@/components/EmergencySituationModule"; // New module
+import WeatherDashboard from "@/components/WeatherDashboard"; // Import WeatherDashboard
 
-type DashboardView = 'home' | 'chat' | 'cameras' | 'map' | 'utilities' | 'reports' | 'sos-pet' | 'anonymous-reports' | 'emergency-situation';
+type DashboardView = 'home' | 'chat' | 'cameras' | 'map' | 'utilities' | 'reports' | 'sos-pet' | 'anonymous-reports' | 'emergency-situation' | 'weather';
 
 interface NotificationItem {
-  type: 'message' | 'alert';
+  type: 'message' | 'alert' | 'weather_alert';
   id: string;
   title: string;
   description: string;
   timestamp: string;
   sender_id?: string;
   is_read?: boolean;
+  alert_type?: string; // For weather alerts
+  severity?: string; // For weather alerts
 }
 
 const Dashboard = () => {
@@ -94,6 +98,7 @@ const Dashboard = () => {
     resolved_at: string | null;
     user_name?: string;
   }[]>([]);
+  const [weatherAlerts, setWeatherAlerts] = useState<NotificationItem[]>([]); // State for weather alerts
   const [unreadMessages, setUnreadMessages] = useState<NotificationItem[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const alertsPerPage = 5;
@@ -145,6 +150,34 @@ const Dashboard = () => {
     } catch (error) {
       console.error('Error fetching unread messages for popover:', error);
       setUnreadMessages([]);
+    }
+  };
+
+  // Function to fetch active weather alerts for the popover
+  const fetchActiveWeatherAlertsForPopover = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('weather_alerts')
+        .select('*')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      if (error) throw error;
+
+      const alerts = (data || []).map(alert => ({
+        type: 'weather_alert',
+        id: alert.id,
+        title: `⚠️ Alerta Meteorológico: ${alert.alert_type.replace(/_/g, ' ')}`,
+        description: alert.message,
+        timestamp: alert.created_at,
+        alert_type: alert.alert_type,
+        severity: alert.severity,
+      })) as NotificationItem[];
+      setWeatherAlerts(alerts);
+    } catch (error) {
+      console.error('Error fetching active weather alerts for popover:', error);
+      setWeatherAlerts([]);
     }
   };
 
@@ -255,10 +288,11 @@ const Dashboard = () => {
     }
   }, [user, toast]);
 
-  // Fetch unread messages for the notification popover when it opens
+  // Fetch unread messages and weather alerts for the notification popover when it opens
   useEffect(() => {
     if (isNotificationsOpen && user) {
       fetchUnreadMessagesForPopover();
+      fetchActiveWeatherAlertsForPopover();
     }
   }, [isNotificationsOpen, user]);
 
@@ -382,7 +416,7 @@ const Dashboard = () => {
     });
   };
 
-  const totalNotifications = emergencyAlerts.filter(alert => alert.is_active).length + unreadCount;
+  const totalNotifications = emergencyAlerts.filter(alert => alert.is_active).length + unreadCount + weatherAlerts.length;
 
   const handleNotificationClick = async (notification: NotificationItem) => {
     if (notification.type === 'message' && notification.sender_id) {
@@ -397,6 +431,8 @@ const Dashboard = () => {
     } else if (notification.type === 'alert') {
       // Maybe navigate to a map view or alert details
       // For now, just close popover
+    } else if (notification.type === 'weather_alert') {
+      setActiveView('weather'); // Navigate to weather dashboard
     }
     setIsNotificationsOpen(false);
   };
@@ -453,6 +489,16 @@ const Dashboard = () => {
                 </CardHeader>
                 <ScrollArea className="h-[300px]">
                   <div className="p-4 space-y-2">
+                    {weatherAlerts.map((alert) => (
+                      <div key={alert.id} className="flex items-start gap-2 p-2 hover:bg-muted rounded-md cursor-pointer" onClick={() => handleNotificationClick(alert)}>
+                        <CloudLightning className="h-5 w-5 text-yellow-400 flex-shrink-0" />
+                        <div>
+                          <p className="font-medium text-sm">{alert.title}</p>
+                          <p className="text-xs text-muted-foreground truncate">{alert.description}</p>
+                          <p className="text-xs text-muted-foreground">{new Date(alert.timestamp).toLocaleString('pt-BR')}</p>
+                        </div>
+                      </div>
+                    ))}
                     {emergencyAlerts.filter(alert => alert.is_active).map((alert) => (
                       <div key={alert.id} className="flex items-start gap-2 p-2 hover:bg-muted rounded-md cursor-pointer" onClick={() => handleNotificationClick({
                         type: 'alert',
@@ -599,6 +645,10 @@ const Dashboard = () => {
                       <CloudLightning className="h-5 w-5 mr-2" />
                       Situação de Emergência
                     </Button>
+                    <Button variant="ghost" className="justify-start" onClick={() => handleSelectView('weather')}>
+                      <Cloud className="h-5 w-5 mr-2" />
+                      Meteorologia
+                    </Button>
                     <Button variant="ghost" className="justify-start" onClick={() => handleSelectView('police')}>
                       <ShieldAlert className="h-5 w-5 mr-2" />
                       Polícia
@@ -666,6 +716,10 @@ const Dashboard = () => {
 
         {activeView === 'emergency-situation' && (
           <EmergencySituationModule />
+        )}
+
+        {activeView === 'weather' && (
+          <WeatherDashboard />
         )}
       </div>
     </div>

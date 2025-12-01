@@ -19,9 +19,10 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { useAdminNotifications } from '@/hooks/useAdminNotifications';
 import { CardHeader, CardTitle, Card, CardDescription, CardContent } from '@/components/ui/card';
-import SosPetModule from '@/components/SosPetModule'; // Import new module
-import AnonymousReportsModule from '@/components/AnonymousReportsModule'; // Import new module
-import EmergencySituationModule from '@/components/EmergencySituationModule'; // Import new module
+import SosPetModule from '@/components/SosPetModule'; // New module
+import AnonymousReportsModule from '@/components/AnonymousReportsModule'; // New module
+import EmergencySituationModule from '@/components/EmergencySituationModule'; // New module
+import WeatherDashboard from '@/components/WeatherDashboard'; // Import WeatherDashboard
 
 const AdminPanel = () => {
   const { isAdmin, loading: adminLoading } = useAdmin();
@@ -191,6 +192,7 @@ const AdminPanel = () => {
   const PawPrintIcon = getLucideIconByName('PawPrint'); // New icon for SOS Pet
   const MessageSquareOffIcon = getLucideIconByName('MessageSquareOff'); // New icon for Anonymous Reports
   const CloudLightningIcon = getLucideIconByName('CloudLightning'); // New icon for Emergency Situation
+  const CloudIcon = getLucideIconByName('Cloud'); // New icon for Weather
 
 
   return (
@@ -290,7 +292,7 @@ const AdminPanel = () => {
 
       <div className="container mx-auto px-4 py-8">
         <Tabs defaultValue="dashboard" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-7"> {/* Adjusted grid-cols to 7 */}
+          <TabsList className="grid w-full grid-cols-9"> {/* Adjusted grid-cols to 9 */}
             <TabsTrigger value="dashboard">
               <ShieldIcon className="h-4 w-4 mr-2" />
               Dashboard
@@ -322,6 +324,10 @@ const AdminPanel = () => {
             <TabsTrigger value="emergency-situation"> {/* New tab for Emergency Situation */}
               <CloudLightningIcon className="h-4 w-4 mr-2" />
               Emergência
+            </TabsTrigger>
+            <TabsTrigger value="weather"> {/* New tab for Weather */}
+              <CloudIcon className="h-4 w-4 mr-2" />
+              Meteorologia
             </TabsTrigger>
             <TabsTrigger value="logs">
               <ShieldIcon className="h-4 w-4 mr-2" />
@@ -363,6 +369,10 @@ const AdminPanel = () => {
 
           <TabsContent value="emergency-situation"> {/* Content for the new Emergency Situation tab */}
             <EmergencySituationModule />
+          </TabsContent>
+
+          <TabsContent value="weather"> {/* Content for the new Weather tab */}
+            <WeatherDashboard />
           </TabsContent>
 
           <TabsContent value="logs">
