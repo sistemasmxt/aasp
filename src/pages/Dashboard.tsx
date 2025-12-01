@@ -52,11 +52,12 @@ import { useIsMobile } from "@/hooks/use-mobile"; // Import useIsMobile hook
 import SosPetModule from "@/components/SosPetModule"; // New module
 import AnonymousReportsModule from "@/components/AnonymousReportsModule"; // New module
 import EmergencySituationModule from "@/components/EmergencySituationModule"; // New module
+import WeatherDashboard from "@/components/WeatherDashboard"; // New module
 
-type DashboardView = 'home' | 'chat' | 'cameras' | 'map' | 'utilities' | 'reports' | 'sos-pet' | 'anonymous-reports' | 'emergency-situation';
+type DashboardView = 'home' | 'chat' | 'cameras' | 'map' | 'utilities' | 'reports' | 'sos-pet' | 'anonymous-reports' | 'emergency-situation' | 'weather'; // Added 'weather'
 
 interface NotificationItem {
-  type: 'message' | 'alert';
+  type: 'message' | 'alert' | 'weather_alert'; // Added 'weather_alert'
   id: string;
   title: string;
   description: string;
@@ -93,6 +94,15 @@ const Dashboard = () => {
     created_at: string;
     resolved_at: string | null;
     user_name?: string;
+  }[]>([]);
+  const [weatherAlerts, setWeatherAlerts] = useState<{ // New state for weather alerts
+    id: string;
+    location_name: string;
+    alert_type: string;
+    severity: string;
+    message: string;
+    is_active: boolean;
+    created_at: string;
   }[]>([]);
   const [unreadMessages, setUnreadMessages] = useState<NotificationItem[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -198,6 +208,18 @@ const Dashboard = () => {
           }
         });
 
+      // Fetch active weather alerts
+      supabase
+        .from('weather_alerts')
+        .select('*')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+        .then(({ data }) => {
+          setWeatherAlerts(data || []);
+        })
+        .catch(error => console.error('Error fetching weather alerts:', error));
+
+
       // Subscribe to new alerts
       const channel = supabase
         .channel("emergency_alerts")
@@ -249,8 +271,46 @@ const Dashboard = () => {
         )
         .subscribe();
 
+      // Subscribe to new weather alerts
+      const weatherAlertsChannel = supabase
+        .channel("weather_alerts_dashboard")
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "weather_alerts",
+            filter: 'is_active=eq.true',
+          },
+          (payload) => {
+            const newWeatherAlert = payload.new as typeof weatherAlerts[0];
+            setWeatherAlerts((prev) => [newWeatherAlert, ...prev]);
+            toast({
+              title: "⛈️ Alerta Meteorológico!",
+              description: newWeatherAlert.message,
+              variant: "destructive",
+              duration: 10000,
+            });
+          }
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "weather_alerts",
+            filter: 'is_active=eq.false', // Listen for deactivation
+          },
+          (payload) => {
+            const deactivatedAlert = payload.new as typeof weatherAlerts[0];
+            setWeatherAlerts((prev) => prev.filter(alert => alert.id !== deactivatedAlert.id));
+          }
+        )
+        .subscribe();
+
       return () => {
         supabase.removeChannel(channel);
+        supabase.removeChannel(weatherAlertsChannel);
       };
     }
   }, [user, toast]);
@@ -382,7 +442,7 @@ const Dashboard = () => {
     });
   };
 
-  const totalNotifications = emergencyAlerts.filter(alert => alert.is_active).length + unreadCount;
+  const totalNotifications = emergencyAlerts.filter(alert => alert.is_active).length + unreadCount + weatherAlerts.length; // Include weather alerts
 
   const handleNotificationClick = async (notification: NotificationItem) => {
     if (notification.type === 'message' && notification.sender_id) {
@@ -397,6 +457,8 @@ const Dashboard = () => {
     } else if (notification.type === 'alert') {
       // Maybe navigate to a map view or alert details
       // For now, just close popover
+    } else if (notification.type === 'weather_alert') {
+      setActiveView('weather'); // Navigate to weather dashboard
     }
     setIsNotificationsOpen(false);
   };
@@ -465,6 +527,22 @@ const Dashboard = () => {
                         <div>
                           <p className="font-medium text-sm">🚨 ALERTA: {alert.alert_type.toUpperCase()}</p>
                           <p className="text-xs text-muted-foreground">{alert.user_name} ativou um alerta!</p>
+                          <p className="text-xs text-muted-foreground">{new Date(alert.created_at).toLocaleString('pt-BR')}</p>
+                        </div>
+                      </div>
+                    ))}
+                    {weatherAlerts.filter(alert => alert.is_active).map((alert) => (
+                      <div key={alert.id} className="flex items-start gap-2 p-2 hover:bg-muted rounded-md cursor-pointer" onClick={() => handleNotificationClick({
+                        type: 'weather_alert',
+                        id: alert.id,
+                        title: `⛈️ ALERTA METEOROLÓGICO: ${alert.alert_type.replace(/_/g, ' ').toUpperCase()}`,
+                        description: alert.message,
+                        timestamp: alert.created_at,
+                      })}>
+                        <CloudLightning className="h-5 w-5 text-yellow-400 flex-shrink-0" />
+                        <div>
+                          <p className="font-medium text-sm">⛈️ ALERTA METEOROLÓGICO: {alert.alert_type.replace(/_/g, ' ').toUpperCase()}</p>
+                          <p className="text-xs text-muted-foreground">{alert.message}</p>
                           <p className="text-xs text-muted-foreground">{new Date(alert.created_at).toLocaleString('pt-BR')}</p>
                         </div>
                       </div>
@@ -599,6 +677,10 @@ const Dashboard = () => {
                       <CloudLightning className="h-5 w-5 mr-2" />
                       Situação de Emergência
                     </Button>
+                    <Button variant="ghost" className="justify-start" onClick={() => handleSelectView('weather')}> {/* New menu item */}
+                      <CloudLightning className="h-5 w-5 mr-2" />
+                      Meteorologia
+                    </Button>
                     <Button variant="ghost" className="justify-start" onClick={() => handleSelectView('police')}>
                       <ShieldAlert className="h-5 w-5 mr-2" />
                       Polícia
@@ -666,6 +748,10 @@ const Dashboard = () => {
 
         {activeView === 'emergency-situation' && (
           <EmergencySituationModule />
+        )}
+
+        {activeView === 'weather' && ( // New view for WeatherDashboard
+          <WeatherDashboard />
         )}
       </div>
     </div>
