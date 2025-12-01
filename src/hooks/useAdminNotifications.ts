@@ -6,12 +6,8 @@ type AdminNotification = Tables<'admin_notifications'> & {
   profiles?: { full_name: string } | null;
 };
 
-type WeatherAlertNotification = Tables<'weather_alerts'> & {
-  type: 'weather_alert'; // Add a type discriminator
-};
-
 export const useAdminNotifications = (adminId: string | undefined) => {
-  const [notifications, setNotifications] = useState<(AdminNotification | WeatherAlertNotification)[]>([]);
+  const [notifications, setNotifications] = useState<AdminNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
@@ -26,33 +22,20 @@ export const useAdminNotifications = (adminId: string | undefined) => {
     }
     setLoading(true);
     try {
-      // Step 1: Fetch admin_notifications
-      const { data: adminNotificationsData, error: adminNotificationsError } = await supabase
+      // Step 1: Fetch admin_notifications without joining profiles
+      const { data: notificationsData, error: notificationsError } = await supabase
         .from('admin_notifications')
         .select(`*`)
         .order('created_at', { ascending: false })
         .limit(20);
 
-      if (adminNotificationsError) {
-        console.error("[useAdminNotifications] Supabase fetch admin notifications error:", adminNotificationsError);
-        throw adminNotificationsError;
+      if (notificationsError) {
+        console.error("[useAdminNotifications] Supabase fetch notifications error:", notificationsError);
+        throw notificationsError;
       }
 
-      // Step 2: Fetch active weather_alerts
-      const { data: weatherAlertsData, error: weatherAlertsError } = await supabase
-        .from('weather_alerts')
-        .select(`*`)
-        .eq('is_active', true)
-        .order('created_at', { ascending: false })
-        .limit(10); // Limit weather alerts
-
-      if (weatherAlertsError) {
-        console.error("[useAdminNotifications] Supabase fetch weather alerts error:", weatherAlertsError);
-        throw weatherAlertsError;
-      }
-
-      // Step 3: Manually fetch profiles for admin notifications
-      const adminNotificationsWithProfiles = await Promise.all((adminNotificationsData || []).map(async (notification) => {
+      // Step 2: Manually fetch profiles for each notification
+      const notificationsWithProfiles = await Promise.all((notificationsData || []).map(async (notification) => {
         let profileData = null;
         if (notification.user_id) {
           const { data: fetchedProfile, error: profileError } = await supabase
@@ -72,17 +55,9 @@ export const useAdminNotifications = (adminId: string | undefined) => {
         };
       }));
 
-      // Combine all notifications and sort by created_at
-      const combinedNotifications: (AdminNotification | WeatherAlertNotification)[] = [
-        ...adminNotificationsWithProfiles,
-        ...(weatherAlertsData || []).map(alert => ({ ...alert, type: 'weather_alert' as const, is_read: false })), // Weather alerts are always "unread" until resolved
-      ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
-      const unreadAdmin = adminNotificationsWithProfiles.filter(n => !n.is_read).length;
-      const unreadWeather = weatherAlertsData?.length || 0; // All active weather alerts are considered unread for admin
-      
-      setNotifications(combinedNotifications);
-      setUnreadCount(unreadAdmin + unreadWeather);
+      const unread = notificationsWithProfiles.filter(n => !n.is_read).length;
+      setNotifications(notificationsWithProfiles);
+      setUnreadCount(unread);
     } catch (error) {
       console.error('Error fetching admin notifications:', error);
     } finally {
@@ -98,7 +73,7 @@ export const useAdminNotifications = (adminId: string | undefined) => {
 
     if (!adminId) return;
 
-    const adminChannel = supabase
+    const channel = supabase
       .channel(`admin_notifications_channel`)
       .on(
         'postgres_changes',
@@ -121,7 +96,7 @@ export const useAdminNotifications = (adminId: string | undefined) => {
             profiles: profileData,
           };
 
-          setNotifications((prev) => [notificationWithProfile, ...prev].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+          setNotifications((prev) => [notificationWithProfile, ...prev]);
           if (!newNotification.is_read) {
             setUnreadCount((prev) => prev + 1);
           }
@@ -151,7 +126,6 @@ export const useAdminNotifications = (adminId: string | undefined) => {
 
           setNotifications((prev) =>
             prev.map(n => n.id === updatedNotification.id ? { ...n, ...updatedNotification, profiles: profileData } : n)
-            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
           );
 
           // Adjust unread count
@@ -164,79 +138,28 @@ export const useAdminNotifications = (adminId: string | undefined) => {
       )
       .subscribe();
 
-    const weatherChannel = supabase
-      .channel('admin_weather_alerts_channel')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'weather_alerts',
-          filter: 'is_active=eq.true',
-        },
-        (payload) => {
-          const newWeatherAlert = payload.new as Tables<'weather_alerts'>;
-          setNotifications((prev) => [{ ...newWeatherAlert, type: 'weather_alert' as const, is_read: false }, ...prev].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
-          setUnreadCount((prev) => prev + 1);
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'weather_alerts',
-          filter: 'is_active=eq.false', // Listen for deactivation
-        },
-        (payload) => {
-          const deactivatedAlert = payload.new as Tables<'weather_alerts'>;
-          setNotifications((prev) => prev.filter(n => !(n.type === 'weather_alert' && n.id === deactivatedAlert.id)).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
-          setUnreadCount((prev) => Math.max(0, prev - 1)); // Decrement unread count when a weather alert is deactivated
-        }
-      )
-      .subscribe();
-
     return () => {
-      supabase.removeChannel(adminChannel);
-      supabase.removeChannel(weatherChannel);
+      supabase.removeChannel(channel);
     };
   }, [adminId, fetchNotifications]); // fetchNotifications is a stable dependency due to useCallback
 
-  const markNotificationAsRead = async (notificationId: string, type: 'admin_notification' | 'weather_alert') => {
-    if (type === 'admin_notification') {
-      try {
-        await supabase
-          .from('admin_notifications')
-          .update({ is_read: true })
-          .eq('id', notificationId);
-      } catch (error) {
-        console.error('Error marking admin notification as read:', error);
-      }
-    } else if (type === 'weather_alert') {
-      // Weather alerts are marked as read by deactivating them in the DB,
-      // or by simply acknowledging them in the UI without changing DB state.
-      // For now, we'll just update the local state to reflect it as "read" in the popover.
-      setNotifications((prev) =>
-        prev.map(n => n.id === notificationId && n.type === 'weather_alert' ? { ...n, is_read: true } : n)
-      );
-      setUnreadCount((prev) => Math.max(0, prev - 1));
+  const markNotificationAsRead = async (notificationId: string) => {
+    try {
+      await supabase
+        .from('admin_notifications')
+        .update({ is_read: true })
+        .eq('id', notificationId);
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
     }
   };
 
   const markAllNotificationsAsRead = async () => {
     try {
-      // Mark all admin_notifications as read
       await supabase
         .from('admin_notifications')
         .update({ is_read: true })
         .eq('is_read', false);
-      
-      // For weather alerts, we just clear them from the unread count locally
-      // as their "read" status is tied to their "is_active" status in DB.
-      setNotifications((prev) =>
-        prev.map(n => n.type === 'weather_alert' ? { ...n, is_read: true } : n)
-      );
-
       setUnreadCount(0);
     } catch (error) {
       console.error('Error marking all notifications as read:', error);

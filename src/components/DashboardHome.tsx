@@ -25,7 +25,7 @@ const CustomIcon = ({ src, icon: Icon, className }: { src?: string; icon?: React
 
 interface DashboardHomeProps {
   onSOSAlert: () => void;
-  onSelectView: (view: 'home' | 'chat' | 'cameras' | 'map' | 'profile' | 'police' | 'ambulance' | 'reports' | 'utilities' | 'sos-pet' | 'anonymous-reports' | 'emergency-situation' | 'weather') => void; // Added 'weather'
+  onSelectView: (view: 'home' | 'chat' | 'cameras' | 'map' | 'profile' | 'police' | 'ambulance' | 'reports' | 'utilities' | 'sos-pet' | 'anonymous-reports' | 'emergency-situation') => void;
   onOpenProfileEdit: () => void;
   onEmergencyContact: (type: 'police' | 'ambulance') => void;
   onHelpAndReports: () => void;
@@ -136,14 +136,6 @@ const DashboardHome = ({
       description: 'Alertas sobre fenômenos naturais',
       color: 'text-yellow-400',
       action: () => onSelectView('emergency-situation'),
-    },
-    { // New: Meteorologia
-      id: 'weather',
-      icon: CloudLightning,
-      title: 'Meteorologia',
-      description: 'Clima e alertas em tempo real',
-      color: 'text-blue-400',
-      action: () => onSelectView('weather'),
     },
   ];
 
