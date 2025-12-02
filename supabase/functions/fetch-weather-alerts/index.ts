@@ -143,8 +143,8 @@ serve(async (req) => {
     await supabaseClient
       .from("weather_alerts")
       .update({ is_active: false, end_time: new Date().toISOString() })
-      .eq("latitude", locationLat)
-      .eq("longitude", locationLon)
+      .eq("latitude", parseFloat(WEATHER_LOCATION_LAT)) // Usar WEATHER_LOCATION_LAT
+      .eq("longitude", parseFloat(WEATHER_LOCATION_LON)) // Usar WEATHER_LOCATION_LON
       .eq("is_active", true);
 
     // Inserir novos alertas ativos
