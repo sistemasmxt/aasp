@@ -170,6 +170,11 @@ const WeatherDashboard = () => {
     map.setView([locationLat, locationLon], 10);
   }, [weatherAlerts, locationLat, locationLon]);
 
+  const getWeatherIconUrl = (iconCode: string | undefined) => {
+    if (!iconCode) return ''; // Return empty string if iconCode is undefined
+    return `https://openweathermap.org/img/wn/${iconCode}@2x.png`;
+  };
+
   const fetchWeatherData = async () => {
     setLoading(true);
     try {
@@ -208,6 +213,8 @@ const WeatherDashboard = () => {
         description: mapErrorToUserMessage(error),
         variant: 'destructive',
       });
+      setCurrentWeather(null); // Clear current weather on error
+      setForecast([]); // Clear forecast on error
     } finally {
       setLoading(false);
     }
@@ -232,8 +239,6 @@ const WeatherDashboard = () => {
       });
     }
   };
-
-  const getWeatherIconUrl = (iconCode: string) => `https://openweathermap.org/img/wn/${iconCode}@2x.png`;
 
   const getAlertTypeLabel = (type: WeatherAlertType) => {
     switch (type) {
@@ -300,7 +305,7 @@ const WeatherDashboard = () => {
           {currentWeather ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-center">
               <div className="flex items-center gap-4">
-                <img src={getWeatherIconUrl(currentWeather.icon)} alt={currentWeather.description} className="w-20 h-20" />
+                {currentWeather.icon && <img src={getWeatherIconUrl(currentWeather.icon)} alt={currentWeather.description} className="w-20 h-20" />}
                 <div>
                   <p className="text-5xl font-bold text-foreground">{currentWeather.temp.toFixed(0)}°C</p>
                   <p className="text-muted-foreground capitalize">{currentWeather.description}</p>
@@ -328,7 +333,7 @@ const WeatherDashboard = () => {
               </div>
             </div>
           ) : (
-            <p className="text-center text-muted-foreground py-4">Não foi possível carregar os dados do clima atual.</p>
+            <p className="text-center text-muted-foreground py-4">Não foi possível carregar os dados do clima atual. Verifique as configurações da API e sua conexão.</p>
           )}
         </CardContent>
       </Card>

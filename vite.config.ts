@@ -77,7 +77,7 @@ export default defineConfig(({ mode }) => ({
         display: "standalone",
         orientation: "portrait-primary",
         scope: "/",
-        start_url: "/", // Corrigido: Adicionada vírgula aqui
+        start_url: "/", 
         icons: [
           {
             src: "/pwa-64x64.png",
