@@ -54,7 +54,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 type Profile = Tables<'profiles'>;
 type UserRole = Tables<'user_roles'>;
-type InitialPaymentStatus = Constants['public']['Enums']['initial_payment_status_enum'];
+type InitialPaymentStatus = 'pending' | 'paid' | 'unpaid';
 
 interface UserManagementEnhancedProps {
   onAuditLogSuccess: () => void;
@@ -515,7 +515,7 @@ const UserManagementEnhanced = ({ onAuditLogSuccess }: UserManagementEnhancedPro
       full_name: profile.full_name,
       phone: profile.phone || '',
       is_approved: profile.is_approved,
-      initial_payment_status: profile.initial_payment_status,
+      initial_payment_status: (profile.initial_payment_status || 'pending') as InitialPaymentStatus,
     });
     setAvatarPreview(profile.avatar_url || null);
     setAvatarFile(null);
@@ -634,7 +634,7 @@ const UserManagementEnhanced = ({ onAuditLogSuccess }: UserManagementEnhancedPro
     setLoading(true);
     try {
       const { error } = await supabaseAdmin.auth.admin.generateLink({
-        type: 'password_reset',
+        type: 'recovery',
         email: selectedUserEmail,
         options: {
           redirectTo: `${window.location.origin}/auth?reset=true`,
@@ -645,7 +645,7 @@ const UserManagementEnhanced = ({ onAuditLogSuccess }: UserManagementEnhancedPro
 
       await logAudit({
         action: 'UPDATE',
-        table_name: 'auth.users',
+        table_name: 'profiles',
         record_id: selectedProfile?.id,
         details: { action: 'password_reset_email_sent', email: selectedUserEmail },
       });

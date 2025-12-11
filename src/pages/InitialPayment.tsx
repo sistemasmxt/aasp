@@ -46,11 +46,11 @@ const InitialPayment = () => {
         toast({
           title: "Acesso Aprovado!",
           description: "Seu pagamento foi confirmado e seu acesso está liberado.",
-          variant: "success",
         });
         navigate('/dashboard', { replace: true });
       } else {
-        setPaymentStatus(profile.initial_payment_status);
+        const status = profile.initial_payment_status as 'pending' | 'paid' | 'unpaid';
+        setPaymentStatus(status || 'unpaid');
       }
     } catch (error: any) {
       console.error("Error checking payment status:", error.message);

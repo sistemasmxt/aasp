@@ -318,7 +318,7 @@ const AnonymousReportsModule = () => {
                   <h3 className="font-semibold text-lg text-foreground">
                     {REPORT_TYPES.find(t => t.value === report.report_type)?.label || report.report_type}
                   </h3>
-                  {getStatusBadge(report.status)}
+                  {getStatusBadge(report.status as ReportStatus)}
                 </div>
                 {report.image_url && (
                   <img src={report.image_url} alt="Imagem da denúncia" className="w-full h-48 object-cover rounded-md mb-3" />
