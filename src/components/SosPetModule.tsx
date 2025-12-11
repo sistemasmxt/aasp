@@ -15,11 +15,11 @@ import { useAuth } from '@/hooks/useAuth';
 import { mapErrorToUserMessage } from '@/lib/errorHandler';
 import { sosPetSchema } from '@/lib/validationSchemas';
 import { z } from 'zod';
-import { Tables, Constants } from '@/integrations/supabase/types';
+import { Tables } from '@/integrations/supabase/types';
 import { Badge } from '@/components/ui/badge';
 
 type SosPet = Tables<'sos_pets'>;
-type PetStatus = Constants['public']['Enums']['pet_status_enum'];
+type PetStatus = 'active' | 'found' | 'resolved';
 
 const SPECIES_OPTIONS = [
   { value: 'dog', label: 'Cachorro' },
@@ -131,18 +131,17 @@ const SosPetModule = () => {
       });
 
       const { error } = await supabase.from('sos_pets').insert({
-        user_id: user?.id,
+        user_id: user?.id || '',
         pet_name: validatedData.pet_name,
-        species: validatedData.species,
-        breed: validatedData.breed || null,
+        pet_type: validatedData.species || 'other',
+        pet_breed: validatedData.breed || null,
         description: validatedData.description || null,
         last_seen_location: validatedData.last_seen_location || null,
         latitude: validatedData.latitude,
         longitude: validatedData.longitude,
         contact_phone: validatedData.contact_phone,
-        contact_email: validatedData.contact_email || null,
         image_url: validatedData.image_url || null,
-        status: 'missing',
+        status: 'active',
       });
 
       if (error) throw error;
@@ -179,9 +178,9 @@ const SosPetModule = () => {
     }
   };
 
-  const getStatusBadge = (status: PetStatus) => {
+  const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'missing': return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" /> Perdido</Badge>;
+      case 'active': return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" /> Perdido</Badge>;
       case 'found': return <Badge variant="secondary"><Search className="h-3 w-3 mr-1" /> Encontrado</Badge>;
       case 'resolved': return <Badge variant="default" className="bg-green-500 hover:bg-green-500"><CheckCircle className="h-3 w-3 mr-1" /> Resolvido</Badge>;
       default: return <Badge variant="secondary">{status}</Badge>;
@@ -362,20 +361,15 @@ const SosPetModule = () => {
                 {pet.image_url && (
                   <img src={pet.image_url} alt={pet.pet_name} className="w-full h-48 object-cover rounded-md mb-3" />
                 )}
-                <p className="text-sm text-muted-foreground mb-2">Espécie: {SPECIES_OPTIONS.find(s => s.value === pet.species)?.label || pet.species}</p>
-                {pet.breed && <p className="text-sm text-muted-foreground mb-2">Raça: {pet.breed}</p>}
+                <p className="text-sm text-muted-foreground mb-2">Espécie: {SPECIES_OPTIONS.find(s => s.value === pet.pet_type)?.label || pet.pet_type}</p>
+                {pet.pet_breed && <p className="text-sm text-muted-foreground mb-2">Raça: {pet.pet_breed}</p>}
                 {pet.description && <p className="text-sm text-muted-foreground mb-2 truncate">{pet.description}</p>}
                 {pet.last_seen_location && <p className="text-sm text-muted-foreground flex items-center gap-1"><MapPin className="h-4 w-4" /> {pet.last_seen_location}</p>}
                 <div className="flex items-center gap-2 mt-3">
-                  <Button asChild size="sm" className="flex-1">
-                    <a href={`tel:${pet.contact_phone.replace(/\D/g, '')}`}>
-                      <Phone className="h-4 w-4 mr-2" /> Ligar
-                    </a>
-                  </Button>
-                  {pet.contact_email && (
-                    <Button asChild variant="outline" size="sm" className="flex-1">
-                      <a href={`mailto:${pet.contact_email}`}>
-                        <Mail className="h-4 w-4 mr-2" /> E-mail
+                  {pet.contact_phone && (
+                    <Button asChild size="sm" className="flex-1">
+                      <a href={`tel:${pet.contact_phone.replace(/\D/g, '')}`}>
+                        <Phone className="h-4 w-4 mr-2" /> Ligar
                       </a>
                     </Button>
                   )}

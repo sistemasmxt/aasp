@@ -3,17 +3,18 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Loader2, Cloud, Thermometer, Droplet, Wind, AlertTriangle, MapPin, CalendarDays, Clock, Sun, CloudRain, CloudSnow, CloudLightning, CloudFog, Maximize2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { mapErrorToUserMessage } from '@/lib/errorHandler';
-import { Tables, Constants } from '@/integrations/supabase/types';
+import { Tables } from '@/integrations/supabase/types';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
 type WeatherAlert = Tables<'weather_alerts'>;
-type WeatherAlertType = Constants['public']['Enums']['weather_alert_type_enum'];
-type WeatherAlertSeverity = Constants['public']['Enums']['weather_alert_severity_enum'];
+type WeatherAlertType = 'strong_wind' | 'heavy_rain' | 'extreme_temperature' | 'storm' | 'other';
+type WeatherAlertSeverity = 'low' | 'medium' | 'high' | 'critical';
 
 interface CurrentWeather {
   temp: number;
