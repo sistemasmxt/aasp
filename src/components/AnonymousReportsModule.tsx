@@ -8,18 +8,18 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { MessageSquareOff, Plus, MapPin, Image, Loader2, CheckCircle, Clock } from 'lucide-react';
+import { MessageSquareOff, Plus, MapPin, Image, Loader2, CheckCircle, Clock, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { mapErrorToUserMessage } from '@/lib/errorHandler';
 import { anonymousReportSchema } from '@/lib/validationSchemas';
 import { z } from 'zod';
-import { Tables, Constants } from '@/integrations/supabase/types';
+import { Tables } from '@/integrations/supabase/types';
 import { Badge } from '@/components/ui/badge';
 
 type AnonymousReport = Tables<'anonymous_reports'>;
-type ReportStatus = Constants['public']['Enums']['report_status_enum'];
+type ReportStatus = 'pending' | 'investigating' | 'resolved';
 
 const REPORT_TYPES = [
   { value: 'suspicious_activity', label: 'Atividade Suspeita' },

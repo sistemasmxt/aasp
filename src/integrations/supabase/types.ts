@@ -44,48 +44,10 @@ export type Database = {
         }
         Relationships: []
       }
-      admin_notifications: {
-        Row: {
-          created_at: string
-          details: Json | null
-          id: string
-          is_read: boolean
-          message: string
-          type: string
-          user_id: string | null
-        }
-        Insert: {
-          created_at?: string
-          details?: Json | null
-          id?: string
-          is_read?: boolean
-          message: string
-          type: string
-          user_id?: string | null
-        }
-        Update: {
-          created_at?: string
-          details?: Json | null
-          id?: string
-          is_read?: boolean
-          message?: string
-          type?: string
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "admin_notifications_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       anonymous_reports: {
         Row: {
           created_at: string
-          description: string
+          description: string | null
           id: string
           image_url: string | null
           latitude: number | null
@@ -93,12 +55,12 @@ export type Database = {
           longitude: number | null
           report_type: string
           reporter_user_id: string | null
-          status: Database["public"]["Enums"]["report_status_enum"]
+          status: string
           updated_at: string
         }
         Insert: {
           created_at?: string
-          description: string
+          description?: string | null
           id?: string
           image_url?: string | null
           latitude?: number | null
@@ -106,12 +68,12 @@ export type Database = {
           longitude?: number | null
           report_type: string
           reporter_user_id?: string | null
-          status?: Database["public"]["Enums"]["report_status_enum"]
+          status?: string
           updated_at?: string
         }
         Update: {
           created_at?: string
-          description?: string
+          description?: string | null
           id?: string
           image_url?: string | null
           latitude?: number | null
@@ -119,18 +81,10 @@ export type Database = {
           longitude?: number | null
           report_type?: string
           reporter_user_id?: string | null
-          status?: Database["public"]["Enums"]["report_status_enum"]
+          status?: string
           updated_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "anonymous_reports_reporter_user_id_fkey"
-            columns: ["reporter_user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       attachments: {
         Row: {
@@ -362,7 +316,7 @@ export type Database = {
           due_date: string
           id: string
           paid_at: string | null
-          payment_type: Database["public"]["Enums"]["payment_type_enum"]
+          payment_type: string | null
           status: string
           user_id: string
         }
@@ -373,7 +327,7 @@ export type Database = {
           due_date: string
           id?: string
           paid_at?: string | null
-          payment_type?: Database["public"]["Enums"]["payment_type_enum"]
+          payment_type?: string | null
           status?: string
           user_id: string
         }
@@ -384,7 +338,7 @@ export type Database = {
           due_date?: string
           id?: string
           paid_at?: string | null
-          payment_type?: Database["public"]["Enums"]["payment_type_enum"]
+          payment_type?: string | null
           status?: string
           user_id?: string
         }
@@ -397,8 +351,8 @@ export type Database = {
           created_at: string
           full_name: string
           id: string
-          initial_payment_status: Database["public"]["Enums"]["initial_payment_status_enum"]
-          is_approved: boolean
+          initial_payment_status: string | null
+          is_approved: boolean | null
           latitude: number | null
           longitude: number | null
           phone: string | null
@@ -410,8 +364,8 @@ export type Database = {
           created_at?: string
           full_name: string
           id: string
-          initial_payment_status?: Database["public"]["Enums"]["initial_payment_status_enum"]
-          is_approved?: boolean
+          initial_payment_status?: string | null
+          is_approved?: boolean | null
           latitude?: number | null
           longitude?: number | null
           phone?: string | null
@@ -423,8 +377,8 @@ export type Database = {
           created_at?: string
           full_name?: string
           id?: string
-          initial_payment_status?: Database["public"]["Enums"]["initial_payment_status_enum"]
-          is_approved?: boolean
+          initial_payment_status?: string | null
+          is_approved?: boolean | null
           latitude?: number | null
           longitude?: number | null
           phone?: string | null
@@ -432,47 +386,9 @@ export type Database = {
         }
         Relationships: []
       }
-      public_utility_contacts: {
-        Row: {
-          color_class: string
-          created_at: string
-          description: string | null
-          icon_name: string
-          id: string
-          name: string
-          phone: string
-          updated_at: string
-          whatsapp: string | null
-        }
-        Insert: {
-          color_class: string
-          created_at?: string
-          description?: string | null
-          icon_name: string
-          id?: string
-          name: string
-          phone: string
-          updated_at?: string
-          whatsapp?: string | null
-        }
-        Update: {
-          color_class?: string
-          created_at?: string
-          description?: string | null
-          icon_name?: string
-          id?: string
-          name?: string
-          phone?: string
-          updated_at?: string
-          whatsapp?: string | null
-        }
-        Relationships: []
-      }
       sos_pets: {
         Row: {
-          breed: string | null
-          contact_email: string | null
-          contact_phone: string
+          contact_phone: string | null
           created_at: string
           description: string | null
           id: string
@@ -480,16 +396,15 @@ export type Database = {
           last_seen_location: string | null
           latitude: number | null
           longitude: number | null
+          pet_breed: string | null
           pet_name: string
-          species: string
-          status: Database["public"]["Enums"]["pet_status_enum"]
+          pet_type: string
+          status: string
           updated_at: string
-          user_id: string | null
+          user_id: string
         }
         Insert: {
-          breed?: string | null
-          contact_email?: string | null
-          contact_phone: string
+          contact_phone?: string | null
           created_at?: string
           description?: string | null
           id?: string
@@ -497,16 +412,15 @@ export type Database = {
           last_seen_location?: string | null
           latitude?: number | null
           longitude?: number | null
+          pet_breed?: string | null
           pet_name: string
-          species: string
-          status?: Database["public"]["Enums"]["pet_status_enum"]
+          pet_type: string
+          status?: string
           updated_at?: string
-          user_id?: string | null
+          user_id: string
         }
         Update: {
-          breed?: string | null
-          contact_email?: string | null
-          contact_phone?: string
+          contact_phone?: string | null
           created_at?: string
           description?: string | null
           id?: string
@@ -514,21 +428,14 @@ export type Database = {
           last_seen_location?: string | null
           latitude?: number | null
           longitude?: number | null
+          pet_breed?: string | null
           pet_name?: string
-          species?: string
-          status?: Database["public"]["Enums"]["pet_status_enum"]
+          pet_type?: string
+          status?: string
           updated_at?: string
-          user_id?: string | null
+          user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "sos_pets_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       user_roles: {
         Row: {
@@ -553,42 +460,42 @@ export type Database = {
       }
       weather_alerts: {
         Row: {
-          alert_type: Database["public"]["Enums"]["weather_alert_type_enum"]
+          alert_type: Database["public"]["Enums"]["alert_type_enum"]
           created_at: string
-          end_time: string | null
+          end_time: string
           id: string
-          is_active: boolean | null
+          is_active: boolean
           latitude: number
           location_name: string
           longitude: number
           message: string
-          severity: Database["public"]["Enums"]["weather_alert_severity_enum"]
+          severity: Database["public"]["Enums"]["severity_enum"]
           start_time: string
         }
         Insert: {
-          alert_type: Database["public"]["Enums"]["weather_alert_type_enum"]
+          alert_type: Database["public"]["Enums"]["alert_type_enum"]
           created_at?: string
-          end_time?: string | null
+          end_time: string
           id?: string
-          is_active?: boolean | null
+          is_active?: boolean
           latitude: number
           location_name: string
           longitude: number
           message: string
-          severity: Database["public"]["Enums"]["weather_alert_severity_enum"]
-          start_time?: string
+          severity: Database["public"]["Enums"]["severity_enum"]
+          start_time: string
         }
         Update: {
-          alert_type?: Database["public"]["Enums"]["weather_alert_type_enum"]
+          alert_type?: Database["public"]["Enums"]["alert_type_enum"]
           created_at?: string
-          end_time?: string | null
+          end_time?: string
           id?: string
-          is_active?: boolean | null
+          is_active?: boolean
           latitude?: number
           location_name?: string
           longitude?: number
           message?: string
-          severity?: Database["public"]["Enums"]["weather_alert_severity_enum"]
+          severity?: Database["public"]["Enums"]["severity_enum"]
           start_time?: string
         }
         Relationships: []
@@ -629,32 +536,16 @@ export type Database = {
         Args: { _group_id: string; _user_id: string }
         Returns: boolean
       }
-      "process-payment-notification": {
-        Args: Record<PropertyKey, never>;
-        Returns: Json;
-      }
-      "trigger-full-backup": {
-        Args: Record<PropertyKey, never>;
-        Returns: Json;
-      }
-      "fetch-weather-alerts": {
-        Args: Record<PropertyKey, never>;
-        Returns: Json;
-      }
     }
     Enums: {
-      app_role: "admin" | "user"
-      initial_payment_status_enum: "unpaid" | "pending" | "paid"
-      payment_type_enum: "initial" | "recurring"
-      pet_status_enum: "missing" | "found" | "resolved"
-      report_status_enum: "pending" | "investigating" | "resolved"
-      weather_alert_type_enum:
+      alert_type_enum:
         | "strong_wind"
         | "heavy_rain"
         | "extreme_temperature"
         | "storm"
         | "other"
-      weather_alert_severity_enum: "low" | "medium" | "high" | "critical"
+      app_role: "admin" | "user"
+      severity_enum: "low" | "medium" | "high" | "critical"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -782,13 +673,15 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      alert_type_enum: [
+        "strong_wind",
+        "heavy_rain",
+        "extreme_temperature",
+        "storm",
+        "other",
+      ],
       app_role: ["admin", "user"],
-      initial_payment_status_enum: ["unpaid", "pending", "paid"],
-      payment_type_enum: ["initial", "recurring"],
-      pet_status_enum: ["missing", "found", "resolved"],
-      report_status_enum: ["pending", "investigating", "resolved"],
-      weather_alert_type_enum: ["strong_wind", "heavy_rain", "extreme_temperature", "storm", "other"],
-      weather_alert_severity_enum: ["low", "medium", "high", "critical"],
+      severity_enum: ["low", "medium", "high", "critical"],
     },
   },
 } as const

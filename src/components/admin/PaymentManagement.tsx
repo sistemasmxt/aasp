@@ -94,7 +94,7 @@ const PaymentManagement = ({ onAuditLogSuccess }: PaymentManagementProps) => {
         .order('full_name');
 
       if (error) throw error;
-      setProfiles(data || []);
+      setProfiles((data || []) as Profile[]);
     } catch (error) {
       console.error('Error fetching profiles:', error);
     }
@@ -128,7 +128,7 @@ const PaymentManagement = ({ onAuditLogSuccess }: PaymentManagementProps) => {
         description: formData.description,
       });
 
-      const paymentData: Tables<'payments', 'Insert'> = {
+      const paymentData = {
         user_id: validatedData.user_id,
         amount: validatedData.amount,
         due_date: validatedData.due_date,
@@ -272,12 +272,12 @@ const PaymentManagement = ({ onAuditLogSuccess }: PaymentManagementProps) => {
       nextMonth.setMonth(nextMonth.getMonth() + 1);
       nextMonth.setDate(10); // Set due date to 10th of next month
 
-      const paymentsToInsert: Tables<'payments', 'Insert'>[] = activeUsers.map(user => ({
+      const paymentsToInsert = activeUsers.map(user => ({
         user_id: user.id,
         amount: 120.00,
-        due_date: nextMonth.toISOString().split('T')[0], // YYYY-MM-DD
-        status: 'pending',
-        payment_type: 'recurring',
+        due_date: nextMonth.toISOString().split('T')[0],
+        status: 'pending' as const,
+        payment_type: 'recurring' as const,
         description: `Mensalidade - ${nextMonth.toLocaleString('pt-BR', { month: 'long', year: 'numeric' })}`,
       }));
 

@@ -94,24 +94,28 @@ const UserReports = () => {
     // Refetch payments to update the list
     if (user) {
       setLoading(true);
-      supabase
-        .from('payments')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('due_date', { ascending: true })
-        .then(({ data, error }) => {
+      const fetchUpdatedPayments = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('payments')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('due_date', { ascending: true });
+          
           if (error) throw error;
           setPayments(data || []);
-        })
-        .catch(error => {
+        } catch (error) {
           console.error('Error refetching payments:', error);
           toast({
             title: 'Erro ao atualizar pagamentos',
             description: mapErrorToUserMessage(error),
             variant: 'destructive',
           });
-        })
-        .finally(() => setLoading(false));
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchUpdatedPayments();
     }
   };
 
