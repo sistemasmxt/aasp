@@ -66,11 +66,12 @@ const Auth = () => {
     }) => {
       if (session) {
         // If user is logged in, check if they are approved
-        supabase.from('profiles').select('is_approved').eq('id', session.user.id).single()
-          .then(({ data, error }) => {
+        const checkApproval = async () => {
+          try {
+            const { data, error } = await supabase.from('profiles').select('is_approved').eq('id', session.user.id).single();
             if (error) {
               console.error("Error checking approval status:", error);
-              navigate("/initial-payment", { replace: true }); // Redirect to payment if status check fails
+              navigate("/initial-payment", { replace: true });
               return;
             }
             if (data?.is_approved) {
@@ -78,11 +79,12 @@ const Auth = () => {
             } else {
               navigate("/initial-payment", { replace: true });
             }
-          })
-          .catch(err => {
+          } catch (err) {
             console.error("Unexpected error during approval check:", err);
             navigate("/initial-payment", { replace: true });
-          });
+          }
+        };
+        checkApproval();
       }
     });
   }, [navigate]);

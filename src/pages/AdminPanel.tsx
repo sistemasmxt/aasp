@@ -246,8 +246,8 @@ const AdminPanel = () => {
                             className={`flex items-start gap-2 p-2 rounded-md cursor-pointer ${notification.is_read ? 'bg-muted/50' : 'bg-accent/10 hover:bg-accent/20'}`}
                             onClick={() => {
                               markNotificationAsRead(notification.id);
-                              if (notification.type === 'payment_notification' && notification.details?.user_id) {
-                                navigate(`/admin?tab=users&userId=${notification.details.user_id}`);
+                              if (notification.type === 'payment_notification' && (notification as any).details?.user_id) {
+                                navigate(`/admin?tab=users&userId=${(notification as any).details.user_id}`);
                               }
                               setIsNotificationsOpen(false);
                             }}

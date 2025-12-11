@@ -99,7 +99,6 @@ const AdminLogin = () => {
           toast({
             title: "Login administrativo realizado com sucesso!",
             description: "Bem-vindo ao Painel Central",
-            variant: "success"
           });
           navigate("/admin", { replace: true });
         } else {

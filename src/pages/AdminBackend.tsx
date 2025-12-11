@@ -24,9 +24,10 @@ import {
   Server,
   Key,
   Lock,
-  PawPrint, // New icon for SOS Pet
-  MessageSquareOff, // New icon for Anonymous Reports
-  CloudLightning, // New icon for Emergency Situation
+  PawPrint,
+  MessageSquareOff,
+  CloudLightning,
+  Wrench,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import UserManagement from '@/components/admin/UserManagementEnhanced';
@@ -78,19 +79,22 @@ const AdminBackend = () => {
       setLoadingStats(true);
 
       // Get user stats
-      const [{ count: totalUsers }, { count: approvedUsers }, { count: activeUsers }] = await Promise.all([
+      const [usersResult, approvedResult, activeResult] = await Promise.all([
         supabase.from('profiles').select('*', { count: 'exact', head: true }),
         supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('is_approved', true),
         (async () => {
           const thirtyDaysAgo = new Date();
           thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-          const { count } = await supabase
+          return await supabase
             .from('profiles')
             .select('*', { count: 'exact', head: true })
-            .gte('updated_at', thirtyDaysAgo.toISOString()); // Using updated_at as a proxy for last_login
-          return count;
+            .gte('updated_at', thirtyDaysAgo.toISOString());
         })(),
       ]);
+      
+      const totalUsers = usersResult.count;
+      const approvedUsers = approvedResult.count;
+      const activeUsers = activeResult.count;
 
       // Get camera stats
       const [{ count: totalCameras }, { count: activeCameras }] = await Promise.all([
